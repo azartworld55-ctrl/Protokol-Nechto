@@ -50,9 +50,9 @@ var noContact = rumorService.TryShare(
     recipientJournal,
     "station.shift.started",
     receivedAtTick: 200,
-    new RelationshipState(100, 100),
+    relationship: new RelationshipState(100, 100),
     hasFaceToFaceContact: false,
-    new Random(1));
+    random: new Random(1));
 Check(!noContact && recipientJournal.Entries.Count == 0,
     "rumors are not transmitted without social contact");
 
@@ -61,9 +61,9 @@ var shared = rumorService.TryShare(
     recipientJournal,
     "station.shift.started",
     receivedAtTick: 210,
-    new RelationshipState(100, 100),
+    relationship: new RelationshipState(100, 100),
     hasFaceToFaceContact: true,
-    new Random(1));
+    random: new Random(1));
 Check(shared, "a high-trust contact can transmit a known memory");
 Check(recipientJournal.Entries.Single().Origin == MemoryOrigin.Rumor,
     "transmitted information is stored as a rumor");
@@ -75,11 +75,31 @@ var repeatedShare = rumorService.TryShare(
     recipientJournal,
     "station.shift.started",
     receivedAtTick: 220,
-    new RelationshipState(100, 100),
+    relationship: new RelationshipState(100, 100),
     hasFaceToFaceContact: true,
-    new Random(1));
+    random: new Random(1));
 Check(!repeatedShare && recipientJournal.Entries.Count == 1,
     "the same resident does not receive duplicate copies of a rumor");
+
+var reactionGraph = new RelationshipGraph();
+var reactionEngine = new RelationshipReactionEngine();
+var helpEvent = new SocialEvent(
+    residentA.Id,
+    residentB.Id,
+    tick: 300,
+    SocialEventKind.Helped);
+var afterHelp = reactionEngine.Apply(reactionGraph, helpEvent);
+Check(afterHelp.Trust == 18 && afterHelp.Familiarity == 5,
+    "helping another resident improves trust and familiarity");
+
+var brokenPromise = new SocialEvent(
+    residentA.Id,
+    residentB.Id,
+    tick: 400,
+    SocialEventKind.BrokePromise);
+var afterPromise = reactionEngine.Apply(reactionGraph, brokenPromise);
+Check(afterPromise.Trust == -10 && afterPromise.Familiarity == 10,
+    "breaking a promise reduces trust and increases familiarity");
 
 var rosterGenerator = new StationRosterGenerator();
 var professions = new[] { "Учёный", "Врач", "Инженер", "Повар", "Техник", "Радист" };
