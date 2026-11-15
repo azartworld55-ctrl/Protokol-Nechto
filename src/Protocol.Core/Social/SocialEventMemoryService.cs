@@ -26,9 +26,8 @@ public sealed class SocialEventMemoryService
         if (observerId == Guid.Empty)
             throw new ArgumentException("Observer id cannot be empty.", nameof(observerId));
 
-        if (observerId != socialEvent.ActorId && observerId != socialEvent.TargetId)
-            return false;
-
+        // The caller supplies only residents who actually witnessed the event.
+        // A witness need not be one of the two participants.
         var eventCode = BuildEventCode(socialEvent);
         if (journal.HasHeard(eventCode))
             return false;
