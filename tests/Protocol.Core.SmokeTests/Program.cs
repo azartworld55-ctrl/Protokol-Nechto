@@ -758,4 +758,66 @@ Check(consequence.ShouldOpenInvestigation &&
 Check(consequenceGraph.Get(residentA.Id, residentB.Id).Trust == 0,
     "social consequences do not spread automatically to uninvolved residents");
 
+
+
+// Incidents are recorded only for explicitly supplied witnesses and only
+// personal knowledge can become evidence in an investigator's case file.
+var incidentWitnessJournal = new MemoryJournal();
+var incidentVictimJournal = new MemoryJournal();
+var uninvolvedIncidentJournal = new MemoryJournal();
+var incidentJournals = new Dictionary<Guid, MemoryJournal>
+{
+    [residentA.Id] = incidentWitnessJournal,
+    [residentB.Id] = incidentVictimJournal,
+    [reporterC.Id] = uninvolvedIncidentJournal
+};
+var incident = new ResidentIncident(
+    residentB.Id,
+    residentA.Id,
+    "incident.lab.sabotage.1200",
+    1200,
+    ResidentIncidentKind.Sabotage);
+var incidentMemoryService = new IncidentMemoryService();
+var incidentRecords = incidentMemoryService.RecordForObservers(
+    incident,
+    new[] { residentA.Id, residentA.Id },
+    incidentJournals);
+Check(incidentRecords == 1 &&
+      incidentWitnessJournal.Entries.Single().SubjectId == residentB.Id &&
+      incidentWitnessJournal.Entries.Single().Origin == MemoryOrigin.Observation,
+    "an explicitly supplied witness records the incident once as direct observation");
+Check(incidentVictimJournal.Entries.Count == 0 &&
+      uninvolvedIncidentJournal.Entries.Count == 0,
+    "the affected resident and uninvolved residents learn nothing unless supplied as observers");
+Check(incidentMemoryService.RecordForObservers(
+        incident, new[] { residentA.Id }, incidentJournals) == 0,
+    "an already recorded incident is not duplicated");
+
+var incidentCase = new InvestigationCaseFile(
+    residentA.Id,
+    residentB.Id,
+    new[] { residentA.Id, residentB.Id, reporterC.Id });
+Check(incidentMemoryService.TrySubmitKnownIncident(
+        residentA.Id, incidentCase, incidentWitnessJournal, submittedAtTick: 1210),
+    "a witness can submit an incident they personally remember");
+Check(incidentCase.Evidence.Single().Kind == InvestigationEvidenceKind.DirectObservation &&
+      incidentCase.Evidence.Single().EventCode == incident.EventCode,
+    "submitted personal observations become direct evidence with the original event identity");
+Check(!incidentMemoryService.TrySubmitKnownIncident(
+        residentA.Id, incidentCase, incidentWitnessJournal, submittedAtTick: 1211),
+    "the same personal memory cannot be submitted twice");
+
+var noKnowledgeCase = new InvestigationCaseFile(
+    reporterC.Id,
+    residentB.Id,
+    new[] { residentA.Id, residentB.Id, reporterC.Id });
+Check(!incidentMemoryService.TrySubmitKnownIncident(
+        reporterC.Id, noKnowledgeCase, uninvolvedIncidentJournal, submittedAtTick: 1210) &&
+      noKnowledgeCase.Evidence.Count == 0,
+    "an investigator cannot submit an incident absent from their own journal");
+Check(incidentMemoryService.TrySubmitPhysicalTrace(
+        reporterC.Id, noKnowledgeCase, "trace.lab.toolmark", 1205, 0.7) &&
+      noKnowledgeCase.Evidence.Single().Kind == InvestigationEvidenceKind.PhysicalTrace,
+    "a separately observed physical trace can be added without granting hidden knowledge");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
