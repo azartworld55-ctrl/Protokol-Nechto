@@ -94,6 +94,6 @@ public sealed class SocialEventMemoryService
     public static string BuildEventCode(SocialEvent socialEvent)
     {
         ArgumentNullException.ThrowIfNull(socialEvent);
-        return $"social.{socialEvent.Kind}.{socialEvent.Tick}";
+        return $"social.{socialEvent.ActorId:N}.{socialEvent.TargetId:N}.{socialEvent.Kind}.{socialEvent.Tick}";
     }
 }
