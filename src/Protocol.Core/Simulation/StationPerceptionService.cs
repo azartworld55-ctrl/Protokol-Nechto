@@ -6,7 +6,7 @@ namespace Protocol.Core.Simulation;
 /// </summary>
 public sealed class StationPerceptionService
 {
-    public IReadOnlySet<Guid> GetVisibleResidents(
+    public IReadOnlySet<GridPosition> GetVisibleCells(
         StationMapSnapshot map,
         Guid observerId,
         int sightRadius)
@@ -20,10 +20,56 @@ public sealed class StationPerceptionService
             throw new ArgumentException("Observer is not present in the map snapshot.", nameof(observerId));
 
         var radiusSquared = sightRadius * sightRadius;
+        var visible = new HashSet<GridPosition>();
+        for (var z = Math.Max(0, origin.Z - sightRadius);
+             z <= Math.Min(map.Height - 1, origin.Z + sightRadius);
+             z++)
+        {
+            for (var x = Math.Max(0, origin.X - sightRadius);
+                 x <= Math.Min(map.Width - 1, origin.X + sightRadius);
+                 x++)
+            {
+                var target = new GridPosition(x, z);
+                if (origin.SquaredDistanceTo(target) <= radiusSquared &&
+                    map.HasLineOfSight(origin, target))
+                    visible.Add(target);
+            }
+        }
+
+        return visible;
+    }
+
+    public IReadOnlySet<Guid> GetVisibleResidents(
+        StationMapSnapshot map,
+        Guid observerId,
+        int sightRadius)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        if (!map.ResidentPositions.ContainsKey(observerId))
+            throw new ArgumentException("Observer is not present in the map snapshot.", nameof(observerId));
+
+        var visibleCells = GetVisibleCells(map, observerId, sightRadius);
         return map.ResidentPositions
-            .Where(pair => pair.Key != observerId)
-            .Where(pair => origin.SquaredDistanceTo(pair.Value) <= radiusSquared)
-            .Where(pair => map.HasLineOfSight(origin, pair.Value))
+            .Where(pair => pair.Key != observerId && visibleCells.Contains(pair.Value))
+            .Select(pair => pair.Key)
+            .ToHashSet();
+    }
+
+    public IReadOnlySet<Guid> GetResidentsWhoCanSee(
+        StationMapSnapshot map,
+        GridPosition eventPosition,
+        int sightRadius)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        if (!map.Contains(eventPosition))
+            throw new ArgumentOutOfRangeException(nameof(eventPosition));
+        if (sightRadius < 0)
+            throw new ArgumentOutOfRangeException(nameof(sightRadius));
+
+        var radiusSquared = sightRadius * sightRadius;
+        return map.ResidentPositions
+            .Where(pair => pair.Value.SquaredDistanceTo(eventPosition) <= radiusSquared)
+            .Where(pair => map.HasLineOfSight(pair.Value, eventPosition))
             .Select(pair => pair.Key)
             .ToHashSet();
     }
