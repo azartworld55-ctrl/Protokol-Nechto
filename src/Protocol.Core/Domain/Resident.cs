@@ -6,7 +6,13 @@ namespace Protocol.Core.Domain;
 /// </summary>
 public sealed class Resident
 {
-    public Resident(Guid id, string name, int age, string profession)
+    public Resident(
+        Guid id,
+        string name,
+        int age,
+        string profession,
+        ResidentPersonality? personality = null,
+        IReadOnlyCollection<ResidentHabit>? habits = null)
     {
         if (id == Guid.Empty)
             throw new ArgumentException("Resident id cannot be empty.", nameof(id));
@@ -24,10 +30,16 @@ public sealed class Resident
         Name = name.Trim();
         Age = age;
         Profession = profession.Trim();
+        Personality = personality ?? ResidentPersonality.Neutral;
+        Habits = Array.AsReadOnly((habits ?? Array.Empty<ResidentHabit>())
+            .Distinct()
+            .ToArray());
     }
 
     public Guid Id { get; }
     public string Name { get; }
     public int Age { get; }
     public string Profession { get; }
+    public ResidentPersonality Personality { get; }
+    public IReadOnlyList<ResidentHabit> Habits { get; }
 }
