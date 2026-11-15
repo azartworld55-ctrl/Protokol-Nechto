@@ -279,4 +279,45 @@ Check(scheduledSimulation.ActiveWorkOrders.Count == 1 &&
       scheduledSimulation.ActiveWorkOrders.Single().ResidentId == residentA.Id,
     "station simulation exposes only currently active work orders");
 
+
+var contactSourceJournal = new MemoryJournal();
+contactSourceJournal.Remember(new MemoryEntry(
+    residentA.Id, "contact.test.event", 800, 1.0, MemoryOrigin.Observation));
+var contactRecipientJournal = new MemoryJournal();
+var uninvolvedJournal = new MemoryJournal();
+var contactSourceMind = new Protocol.Core.Simulation.ResidentMind(
+    residentA, memories: contactSourceJournal);
+var contactRecipientMind = new Protocol.Core.Simulation.ResidentMind(
+    residentB, memories: contactRecipientJournal);
+var contactGraph = new RelationshipGraph();
+var contactProcessor = new Protocol.Core.Simulation.SocialContactProcessor();
+var contactResult = contactProcessor.Process(
+    new Protocol.Core.Simulation.SocialContact(residentA.Id, residentB.Id, 900),
+    contactSourceMind,
+    contactRecipientMind,
+    contactGraph,
+    new Random(1));
+Check(contactGraph.Get(residentA.Id, residentB.Id).Familiarity == 1,
+    "a face-to-face encounter increases familiarity");
+Check(contactResult.FirstSharedWithSecond &&
+      contactRecipientJournal.Entries.Single().Origin == MemoryOrigin.Rumor,
+    "a contact can transmit one known memory as a rumor");
+Check(uninvolvedJournal.Entries.Count == 0,
+    "residents outside the supplied contact do not receive information");
+var rejectedContactPair = false;
+try
+{
+    contactProcessor.Process(
+        new Protocol.Core.Simulation.SocialContact(residentA.Id, witness.Id, 901),
+        contactSourceMind,
+        contactRecipientMind,
+        contactGraph,
+        new Random(1));
+}
+catch (ArgumentException)
+{
+    rejectedContactPair = true;
+}
+Check(rejectedContactPair, "contact processing rejects mismatched participant identities");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
