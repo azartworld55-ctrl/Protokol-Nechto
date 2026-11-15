@@ -621,4 +621,45 @@ Check(corroboratedAccusation.Assessment == AccusationAssessment.StronglySupporte
       corroboratedAccusation.DirectObservationCount == 2,
     "two independent direct reports can strongly support an accusation without making it infallible");
 
+
+
+// Custody is a state machine with an auditable timeline. Physical detention
+// and escape conditions are supplied later by the game adapter.
+var custody = new Protocol.Core.Simulation.ResidentCustodyRegistry(
+    new[] { residentA.Id, residentB.Id, reporterC.Id });
+Check(custody.GetStatus(residentA.Id) ==
+      Protocol.Core.Simulation.ResidentCustodyStatus.Free,
+    "residents begin outside custody");
+Check(custody.Detain(residentA.Id, "suspected assault", 800) &&
+      custody.IsDetained(residentA.Id),
+    "a living station resident can be detained with a recorded reason");
+Check(!custody.Detain(residentA.Id, "duplicate detention", 801),
+    "a resident already in custody cannot be detained twice");
+Check(custody.ResolveEscapeAttempt(
+        residentA.Id, succeeded: false, tick: 810) &&
+      custody.IsDetained(residentA.Id),
+    "a failed escape attempt leaves the resident detained");
+Check(custody.ResolveEscapeAttempt(
+        residentA.Id, succeeded: true, tick: 820) &&
+      custody.GetStatus(residentA.Id) ==
+          Protocol.Core.Simulation.ResidentCustodyStatus.Escaped,
+    "a successful escape changes custody state");
+Check(!custody.ResolveEscapeAttempt(residentA.Id, succeeded: true, tick: 821),
+    "an escaped resident cannot resolve another custody escape attempt");
+var custodyHistory = custody.GetSnapshot(residentA.Id);
+Check(custodyHistory.DetainedAtTick == 800 &&
+      custodyHistory.DetentionReason == "suspected assault" &&
+      custodyHistory.History.Count == 3 &&
+      custodyHistory.History[1].Kind ==
+          Protocol.Core.Simulation.CustodyTransitionKind.EscapeAttemptFailed &&
+      custodyHistory.History[2].Kind ==
+          Protocol.Core.Simulation.CustodyTransitionKind.Escaped,
+    "custody snapshot preserves the detention reason and complete transition history");
+Check(custody.Detain(residentB.Id, "mistaken accusation", 830) &&
+      custody.Release(residentB.Id, "evidence cleared", 840) &&
+      custody.GetStatus(residentB.Id) ==
+          Protocol.Core.Simulation.ResidentCustodyStatus.Released,
+    "a detained resident can be formally released");
+Check(!custody.Release(residentB.Id, "duplicate release", 841),
+    "a resident cannot be released when not detained");
 Console.WriteLine("All Protocol.Core smoke checks passed.");
