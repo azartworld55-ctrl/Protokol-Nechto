@@ -22,6 +22,22 @@ public sealed class MemoryJournal
         _entries.Add(original.Retold(receivedAtTick, reliability));
     }
 
+    /// <summary>
+    /// Copies every known observation and rumor without broadcasting it to
+    /// anyone else or changing its original confidence and timestamp.
+    /// Used when the parasite inherits a victim's memories.
+    /// </summary>
+    public int CopyAllFrom(MemoryJournal source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (ReferenceEquals(this, source))
+            throw new ArgumentException("A journal cannot copy itself.", nameof(source));
+
+        var snapshot = source._entries.ToArray();
+        _entries.AddRange(snapshot);
+        return snapshot.Length;
+    }
+
     public IReadOnlyList<MemoryEntry> Recent(int count)
     {
         if (count < 0)
