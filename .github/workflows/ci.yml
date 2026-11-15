@@ -1,0 +1,35 @@
+name: Validate and build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate RimWorld metadata
+        run: python tools/validate_about.py
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build core library
+        run: dotnet build src/Protocol.Core/Protocol.Core.csproj --configuration Release
+
+      - name: Run core smoke checks
+        run: dotnet run --project tests/Protocol.Core.SmokeTests/Protocol.Core.SmokeTests.csproj --configuration Release
