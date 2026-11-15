@@ -106,15 +106,30 @@ public sealed class StationMapSnapshot
         while (x != target.X || z != target.Z)
         {
             var doubledError = 2 * error;
-            if (doubledError > -dz)
+            var previousX = x;
+            var previousZ = z;
+            var stepInX = doubledError > -dz;
+            var stepInZ = doubledError < dx;
+
+            if (stepInX)
             {
                 error -= dz;
                 x += stepX;
             }
-            if (doubledError < dx)
+            if (stepInZ)
             {
                 error += dx;
                 z += stepZ;
+            }
+
+            // Do not allow diagonal sight through the corner between two
+            // opaque cells (e.g. two walls meeting at a corner).
+            if (stepInX && stepInZ)
+            {
+                var sideX = _cells[previousZ * Width + x];
+                var sideZ = _cells[z * Width + previousX];
+                if (sideX.BlocksVision || sideZ.BlocksVision)
+                    return false;
             }
 
             if (x == target.X && z == target.Z)
