@@ -25,9 +25,10 @@ public sealed class ResidentDecisionEngine
         var resident = mind.Resident;
         var needs = mind.Needs;
         var personality = resident.Personality;
+        var isOnShift = mind.WorkProfile.Schedule.IsWorkingAt(hourOfDay);
         var scores = new Dictionary<ResidentAction, double>
         {
-            [ResidentAction.Work] = 25 + personality.Discipline * 0.25,
+            [ResidentAction.Work] = isOnShift ? 45 + personality.Discipline * 0.35 : 0,
             [ResidentAction.Eat] = needs.Hunger * 1.15,
             [ResidentAction.Rest] = needs.Fatigue * 0.65,
             [ResidentAction.Sleep] = hourOfDay is >= 22 or < 6 ? 75 + needs.Fatigue * 0.35 : 0,
@@ -45,7 +46,7 @@ public sealed class ResidentDecisionEngine
             scores[ResidentAction.Socialize] += 15;
         if (resident.Habits.Contains(ResidentHabit.PrefersQuiet))
             scores[ResidentAction.SeekQuiet] += 12;
-        if (resident.Habits.Contains(ResidentHabit.WorksLate) && hourOfDay is >= 20 or < 2)
+        if (isOnShift && resident.Habits.Contains(ResidentHabit.WorksLate))
             scores[ResidentAction.Work] += 12;
 
         var trustedContact = knownResidents
