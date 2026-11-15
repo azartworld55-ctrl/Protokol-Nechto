@@ -40,9 +40,50 @@ Check(Math.Abs(journal.Entries[1].Confidence - 0.8) < 0.000001,
     "rumor reliability reduces confidence");
 Check(journal.HasHeard("station.shift.started"), "journal can query known event codes");
 
-var generator = new StationRosterGenerator();
+var sourceJournal = new MemoryJournal();
+sourceJournal.Remember(observed);
+var recipientJournal = new MemoryJournal();
+var rumorService = new RumorTransmissionService();
+
+var noContact = rumorService.TryShare(
+    sourceJournal,
+    recipientJournal,
+    "station.shift.started",
+    receivedAtTick: 200,
+    new RelationshipState(100, 100),
+    hasFaceToFaceContact: false,
+    new Random(1));
+Check(!noContact && recipientJournal.Entries.Count == 0,
+    "rumors are not transmitted without social contact");
+
+var shared = rumorService.TryShare(
+    sourceJournal,
+    recipientJournal,
+    "station.shift.started",
+    receivedAtTick: 210,
+    new RelationshipState(100, 100),
+    hasFaceToFaceContact: true,
+    new Random(1));
+Check(shared, "a high-trust contact can transmit a known memory");
+Check(recipientJournal.Entries.Single().Origin == MemoryOrigin.Rumor,
+    "transmitted information is stored as a rumor");
+Check(Math.Abs(recipientJournal.Entries.Single().Confidence - 0.9) < 0.000001,
+    "relationship trust affects rumor reliability");
+
+var repeatedShare = rumorService.TryShare(
+    sourceJournal,
+    recipientJournal,
+    "station.shift.started",
+    receivedAtTick: 220,
+    new RelationshipState(100, 100),
+    hasFaceToFaceContact: true,
+    new Random(1));
+Check(!repeatedShare && recipientJournal.Entries.Count == 1,
+    "the same resident does not receive duplicate copies of a rumor");
+
+var rosterGenerator = new StationRosterGenerator();
 var professions = new[] { "Учёный", "Врач", "Инженер", "Повар", "Техник", "Радист" };
-var roster = generator.Generate(seed: 417, professions);
+var roster = rosterGenerator.Generate(seed: 417, professions);
 
 Check(roster.Residents.Count == StationRoster.RequiredResidentCount,
     "generated roster contains exactly twelve residents");
@@ -60,7 +101,7 @@ Check(roster.Residents.All(resident =>
 Check(roster.Residents.All(resident => resident.Habits.Count is >= 1 and <= 3),
     "each generated resident has one to three distinct habits");
 
-var sameSeedRoster = generator.Generate(seed: 417, professions);
+var sameSeedRoster = rosterGenerator.Generate(seed: 417, professions);
 Check(roster.Residents.Select(resident => resident.Name)
         .SequenceEqual(sameSeedRoster.Residents.Select(resident => resident.Name)),
     "same seed reproduces the same resident name order");
