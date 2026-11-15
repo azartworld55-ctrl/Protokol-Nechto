@@ -732,7 +732,7 @@ personalConcernJournal.Hear(new MemoryEntry(
 var concernedMind = new Protocol.Core.Simulation.ResidentMind(
     residentA, memories: personalConcernJournal);
 var suspicionGraph = new RelationshipGraph();
-suspicionGraph.AdjustTrust(residentA.Id, residentB.Id, -40);
+suspicionGraph.AdjustTrust(residentA.Id, residentB.Id, -10);
 var personalSuspicion = suspicionService.Evaluate(
     concernedMind, residentB.Id, suspicionGraph);
 Check(personalSuspicion.DirectObservations == 1 &&
