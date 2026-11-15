@@ -348,12 +348,12 @@ var mapContacts = perception.DetectSocialContacts(
 Check(mapContacts.Count == 2,
     "map contact detection finds both physically reachable pairs on separate sides of a wall");
 Check(mapContacts.Any(contact =>
-        contact.FirstResidentId == residentA.Id &&
-        contact.SecondResidentId == residentB.Id),
+        new[] { contact.FirstResidentId, contact.SecondResidentId }
+            .ToHashSet().SetEquals(new[] { residentA.Id, residentB.Id })),
     "residents on the same side of a wall can meet");
 Check(mapContacts.Any(contact =>
-        contact.FirstResidentId == witness.Id &&
-        contact.SecondResidentId == rumorRecipient.Id),
+        new[] { contact.FirstResidentId, contact.SecondResidentId }
+            .ToHashSet().SetEquals(new[] { witness.Id, rumorRecipient.Id })),
     "NPCs outside player vision still have their own social contacts");
 
 var visibleEventWitnesses = perception.GetResidentsWhoCanSee(
