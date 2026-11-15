@@ -1,3 +1,5 @@
+using Protocol.Core.Social;
+
 namespace Protocol.Core.Simulation;
 
 public sealed record ProcessedSocialContact(
