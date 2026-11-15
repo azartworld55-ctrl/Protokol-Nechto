@@ -50,7 +50,7 @@ public sealed class AccusationService
             _ => -18
         };
 
-        relationships.AdjustTrust(caseFile.AccuserId, caseFile.SuspectId, trustChange);
+        relationships.AdjustTrust(caseFile.InvestigatorId, caseFile.SuspectId, trustChange);
 
         return new AccusationResult(
             caseFile.InvestigatorId,
