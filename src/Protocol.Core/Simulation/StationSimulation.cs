@@ -15,7 +15,8 @@ public sealed class StationSimulation
         IEnumerable<ResidentMind> residents,
         RelationshipGraph? relationships = null,
         ResidentDecisionEngine? decisionEngine = null,
-        ResidentWorkPlanner? workPlanner = null)
+        ResidentWorkPlanner? workPlanner = null,
+        Guid? playerResidentId = null)
     {
         ArgumentNullException.ThrowIfNull(residents);
         Minds = residents.ToDictionary(mind => mind.Resident.Id);
@@ -25,12 +26,18 @@ public sealed class StationSimulation
         Relationships = relationships ?? new RelationshipGraph();
         _decisionEngine = decisionEngine ?? new ResidentDecisionEngine();
         _workPlanner = workPlanner ?? new ResidentWorkPlanner();
+        if (playerResidentId.HasValue && !Minds.ContainsKey(playerResidentId.Value))
+            throw new ArgumentException("The player must be one of the simulated residents.", nameof(playerResidentId));
+        PlayerTasks = playerResidentId.HasValue
+            ? new PlayerTaskBoard(playerResidentId.Value)
+            : null;
         ActiveWorkOrders = Array.Empty<ResidentWorkOrder>();
     }
 
     public IReadOnlyDictionary<Guid, ResidentMind> Minds { get; }
     public RelationshipGraph Relationships { get; }
     public IReadOnlyList<ResidentWorkOrder> ActiveWorkOrders { get; private set; }
+    public PlayerTaskBoard? PlayerTasks { get; }
     public long Tick { get; private set; }
 
     public IReadOnlyDictionary<Guid, ResidentAction> AdvanceHour(int hourOfDay)
