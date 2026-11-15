@@ -662,4 +662,100 @@ Check(custody.Detain(residentB.Id, "mistaken accusation", 830) &&
     "a detained resident can be formally released");
 Check(!custody.Release(residentB.Id, "duplicate release", 841),
     "a resident cannot be released when not detained");
+
+
+// Observation-limited parasite decisions and personal NPC suspicion.
+var parasiteBrain = new Protocol.Core.Simulation.ParasiteMind(parasiteResident.Id);
+var parasiteBrainEngine = new Protocol.Core.Simulation.ParasiteDecisionEngine();
+var unseenDecision = parasiteBrainEngine.Decide(
+    parasiteBrain,
+    new Protocol.Core.Simulation.ParasiteObservation(100, Array.Empty<Protocol.Core.Simulation.ParasiteOpportunity>()));
+Check(unseenDecision.Kind == Protocol.Core.Simulation.ParasiteDecisionKind.Observe &&
+      unseenDecision.TargetId is null,
+    "the parasite cannot select a resident it has not observed");
+var crowdedDecision = parasiteBrainEngine.Decide(
+    parasiteBrain,
+    new Protocol.Core.Simulation.ParasiteObservation(101, new[]
+    {
+        new Protocol.Core.Simulation.ParasiteOpportunity(
+            residentA.Id, true, 2, 1, true, 0.05)
+    }));
+Check(crowdedDecision.Kind == Protocol.Core.Simulation.ParasiteDecisionKind.Wait &&
+      crowdedDecision.TargetId is null,
+    "the parasite waits when an observed resident is not isolated");
+var blockedSightDecision = parasiteBrainEngine.Decide(
+    parasiteBrain,
+    new Protocol.Core.Simulation.ParasiteObservation(102, new[]
+    {
+        new Protocol.Core.Simulation.ParasiteOpportunity(
+            residentA.Id, true, 2, 0, false, 0.05)
+    }));
+Check(blockedSightDecision.Kind == Protocol.Core.Simulation.ParasiteDecisionKind.Wait,
+    "the parasite cannot act on a candidate without line of sight");
+var riskyDecision = parasiteBrainEngine.Decide(
+    parasiteBrain,
+    new Protocol.Core.Simulation.ParasiteObservation(103, new[]
+    {
+        new Protocol.Core.Simulation.ParasiteOpportunity(
+            residentA.Id, true, 2, 0, true, 0.9)
+    }));
+Check(riskyDecision.Kind == Protocol.Core.Simulation.ParasiteDecisionKind.Wait,
+    "the parasite waits when suspicion risk is too high");
+var playerOpportunity = parasiteBrainEngine.Decide(
+    parasiteBrain,
+    new Protocol.Core.Simulation.ParasiteObservation(104, new[]
+    {
+        new Protocol.Core.Simulation.ParasiteOpportunity(
+            residentA.Id, true, 4, 0, true, 0.2)
+    }));
+Check(playerOpportunity.Kind == Protocol.Core.Simulation.ParasiteDecisionKind.PursueOpportunity &&
+      playerOpportunity.TargetId == residentA.Id &&
+      parasiteBrain.PreferredTargetId == residentA.Id,
+    "the parasite may choose the human player when that person is actually observed");
+Check(parasiteBrain.ConsecutiveWaits == 0,
+    "a selected opportunity resets the parasite's wait counter");
+
+var uninformedMind = new Protocol.Core.Simulation.ResidentMind(residentA);
+var suspicionService = new SuspicionResponseService();
+var suspicionBeforeKnowledge = suspicionService.Evaluate(
+    uninformedMind, residentB.Id, new RelationshipGraph());
+Check(suspicionBeforeKnowledge.Score == 0 &&
+      suspicionBeforeKnowledge.Response == SuspicionResponse.Unconcerned,
+    "an NPC does not suspect someone based on events absent from their own journal");
+
+var personalConcernJournal = new MemoryJournal();
+personalConcernJournal.Remember(new MemoryEntry(
+    residentB.Id, "crime.corridor.first-hand", 1100, 1.0, MemoryOrigin.Observation));
+personalConcernJournal.Hear(new MemoryEntry(
+    residentB.Id, "crime.canteen.heard", 1090, 0.8, MemoryOrigin.Observation),
+    1110, 0.75);
+var concernedMind = new Protocol.Core.Simulation.ResidentMind(
+    residentA, memories: personalConcernJournal);
+var suspicionGraph = new RelationshipGraph();
+suspicionGraph.AdjustTrust(residentA.Id, residentB.Id, -40);
+var personalSuspicion = suspicionService.Evaluate(
+    concernedMind, residentB.Id, suspicionGraph);
+Check(personalSuspicion.DirectObservations == 1 &&
+      personalSuspicion.Rumors == 1 &&
+      personalSuspicion.Score > 50 &&
+      personalSuspicion.Response == SuspicionResponse.Avoid,
+    "personal observations weigh more than rumors when an NPC evaluates concern");
+
+var strongConcernJournal = new MemoryJournal();
+strongConcernJournal.Remember(new MemoryEntry(
+    residentB.Id, "crime.lab.first-hand", 1120, 1.0, MemoryOrigin.Observation));
+strongConcernJournal.Remember(new MemoryEntry(
+    residentB.Id, "crime.airlock.first-hand", 1121, 1.0, MemoryOrigin.Observation));
+var reportingMind = new Protocol.Core.Simulation.ResidentMind(
+    witness, memories: strongConcernJournal);
+var consequenceGraph = new RelationshipGraph();
+var consequence = new SocialConsequenceService().ProcessKnownConcern(
+    reportingMind, residentB.Id, consequenceGraph);
+Check(consequence.ShouldOpenInvestigation &&
+      consequence.TrustChange < 0 &&
+      consequenceGraph.Get(witness.Id, residentB.Id).Trust == consequence.TrustChange,
+    "a resident may report a concern based on multiple personal observations without proving guilt");
+Check(consequenceGraph.Get(residentA.Id, residentB.Id).Trust == 0,
+    "social consequences do not spread automatically to uninvolved residents");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
