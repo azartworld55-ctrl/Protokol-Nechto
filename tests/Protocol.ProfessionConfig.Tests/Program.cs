@@ -124,7 +124,7 @@ Expect<ArgumentException>(
     () => new ProfessionQuotaConfiguration(Array.Empty<ProfessionQuota>()),
     "an empty quota configuration is rejected");
 
-Expect<FormatException>(
+Expect<ArgumentException>(
     () => ProfessionQuotaJson.Deserialize("""{"schemaVersion":1,"quotas":[]}"""),
     "JSON with an empty quota list is rejected by domain validation");
 
