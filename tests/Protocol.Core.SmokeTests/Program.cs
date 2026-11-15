@@ -222,4 +222,61 @@ Check(simulation.Minds.Values.All(mind => mind.CurrentAction.HasValue),
 Check(simulation.Minds.Values.All(mind => mind.Needs.Hunger > 0),
     "resident needs are tracked independently during simulation");
 
+
+// Work schedules and profession-based task planning.
+var dayShift = new Protocol.Core.Simulation.WorkShift(8, 16);
+Check(dayShift.Contains(8) && dayShift.Contains(15) && !dayShift.Contains(16),
+    "day shifts include their start and exclude their end");
+var nightShift = new Protocol.Core.Simulation.WorkShift(22, 6);
+Check(nightShift.Contains(22) && nightShift.Contains(2) && !nightShift.Contains(6),
+    "night shifts correctly cross midnight");
+var workSchedule = new Protocol.Core.Simulation.WorkSchedule(new[] { dayShift });
+Check(workSchedule.IsWorkingAt(9) && !workSchedule.IsWorkingAt(19),
+    "work schedule reports active and inactive hours");
+Check(Protocol.Core.Simulation.ResidentWorkProfile.FromProfession("Врач").Task ==
+      Protocol.Core.Simulation.WorkTask.MedicalCare,
+    "medical professions map to medical work");
+Check(Protocol.Core.Simulation.ResidentWorkProfile.FromProfession("Инженер").Task ==
+      Protocol.Core.Simulation.WorkTask.Engineering,
+    "engineering professions map to engineering work");
+Check(Protocol.Core.Simulation.ResidentWorkProfile.FromProfession("Радист").Task ==
+      Protocol.Core.Simulation.WorkTask.Communications,
+    "radio operators map to communications work");
+
+var dayWorker = new Protocol.Core.Simulation.ResidentMind(
+    residentA,
+    workProfile: Protocol.Core.Simulation.ResidentWorkProfile.FromProfession(
+        residentA.Profession, workSchedule));
+var nightWorker = new Protocol.Core.Simulation.ResidentMind(
+    residentB,
+    workProfile: Protocol.Core.Simulation.ResidentWorkProfile.FromProfession(
+        residentB.Profession,
+        new Protocol.Core.Simulation.WorkSchedule(new[]
+        {
+            new Protocol.Core.Simulation.WorkShift(22, 6)
+        })));
+var workPlanner = new Protocol.Core.Simulation.ResidentWorkPlanner();
+var dayOrders = workPlanner.Plan(new[] { dayWorker, nightWorker }, hourOfDay: 9);
+Check(dayOrders.Count == 1 && dayOrders.Single().ResidentId == residentA.Id,
+    "only residents on an active shift receive work orders");
+Check(dayOrders.Single().Task == Protocol.Core.Simulation.WorkTask.Engineering,
+    "work orders carry the resident's profession-specific task");
+var nightOrders = workPlanner.Plan(new[] { dayWorker, nightWorker }, hourOfDay: 2);
+Check(nightOrders.Count == 1 && nightOrders.Single().ResidentId == residentB.Id,
+    "overnight workers receive orders after midnight");
+var offShiftAction = decisionEngine.ChooseNext(
+    dayWorker,
+    new[] { residentA, residentB },
+    eventGraph,
+    hourOfDay: 19);
+Check(offShiftAction != Protocol.Core.Simulation.ResidentAction.Work,
+    "residents are not assigned work as their routine action outside their shift");
+
+var scheduledSimulation = new Protocol.Core.Simulation.StationSimulation(
+    new[] { dayWorker, nightWorker }, eventGraph);
+scheduledSimulation.AdvanceHour(hourOfDay: 9);
+Check(scheduledSimulation.ActiveWorkOrders.Count == 1 &&
+      scheduledSimulation.ActiveWorkOrders.Single().ResidentId == residentA.Id,
+    "station simulation exposes only currently active work orders");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
