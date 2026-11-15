@@ -549,4 +549,76 @@ Check(!repeatedConsumption.Succeeded &&
           Protocol.Core.Simulation.ParasiteAttackFailure.TargetAlreadyDead,
     "a consumed resident cannot be consumed a second time");
 
+
+
+// Investigation evidence is personal, weighted by source quality, and never
+// exposes the hidden truth of the suspect's identity.
+var reporterC = new Resident(Guid.NewGuid(), "Илья", 34, "Техник");
+var investigationRelationships = new RelationshipGraph();
+investigationRelationships.AdjustTrust(residentA.Id, residentB.Id, 40);
+var caseFile = new InvestigationCaseFile(
+    residentA.Id,
+    residentB.Id,
+    new[] { residentA.Id, residentB.Id, reporterC.Id });
+Check(caseFile.AddEvidence(new InvestigationEvidence(
+        residentA.Id, residentB.Id, "security.corridor.seen", 500, 1.0,
+        InvestigationEvidenceKind.DirectObservation)),
+    "case file accepts a first direct observation");
+Check(!caseFile.AddEvidence(new InvestigationEvidence(
+        residentA.Id, residentB.Id, "security.corridor.seen", 510, 1.0,
+        InvestigationEvidenceKind.DirectObservation)),
+    "the same reporter cannot inflate a case by repeating the same event");
+Check(caseFile.AddEvidence(new InvestigationEvidence(
+        reporterC.Id, residentB.Id, "medical.log.discrepancy", 520, 0.9,
+        InvestigationEvidenceKind.PhysicalTrace)),
+    "case file accepts a separate physical trace");
+Check(caseFile.AddEvidence(new InvestigationEvidence(
+        residentA.Id, residentB.Id, "canteen.heard.claim", 530, 0.8,
+        InvestigationEvidenceKind.Rumor)),
+    "case file accepts a rumor as weaker evidence");
+var assessment = caseFile.Assess();
+Check(assessment.DirectObservationCount == 1 &&
+      assessment.PhysicalTraceCount == 1 &&
+      assessment.RumorCount == 1 &&
+      assessment.IndependentReporterCount == 2 &&
+      assessment.LatestEvidenceTick == 530,
+    "case assessment reports evidence types, independent sources, and latest tick");
+Check(assessment.SuspicionScore > 70,
+    "independent evidence combines into a high suspicion score without proving guilt");
+var accusation = new AccusationService().Issue(caseFile, investigationRelationships);
+Check(accusation.Assessment == AccusationAssessment.Plausible &&
+      accusation.SuspicionScore == assessment.SuspicionScore &&
+      accusation.TrustChange == -9,
+    "a case with one direct observation remains plausible rather than confirmed");
+Check(investigationRelationships.Get(residentA.Id, residentB.Id).Trust == 31,
+    "making an accusation has a measurable social cost");
+
+var weakCase = new InvestigationCaseFile(
+    residentA.Id, residentB.Id, new[] { residentA.Id, residentB.Id });
+weakCase.AddEvidence(new InvestigationEvidence(
+    residentA.Id, residentB.Id, "unverified.canteen.story", 600, 0.2,
+    InvestigationEvidenceKind.Rumor));
+var weakAccusation = new AccusationService().Issue(
+    weakCase, investigationRelationships);
+Check(weakAccusation.Assessment == AccusationAssessment.Weak &&
+      weakAccusation.TrustChange == -18,
+    "an accusation based on a faint rumor is classified as weak and damages trust more");
+Check(investigationRelationships.Get(residentA.Id, residentB.Id).Trust == 13,
+    "weak accusations have stronger relationship consequences");
+
+var corroboratedCase = new InvestigationCaseFile(
+    residentA.Id, residentB.Id, new[] { residentA.Id, residentB.Id, reporterC.Id });
+corroboratedCase.AddEvidence(new InvestigationEvidence(
+    residentA.Id, residentB.Id, "airlock.direct.report.one", 700, 1.0,
+    InvestigationEvidenceKind.DirectObservation));
+corroboratedCase.AddEvidence(new InvestigationEvidence(
+    reporterC.Id, residentB.Id, "airlock.direct.report.two", 701, 1.0,
+    InvestigationEvidenceKind.DirectObservation));
+var corroboratedAccusation = new AccusationService().Issue(
+    corroboratedCase, investigationRelationships);
+Check(corroboratedAccusation.Assessment == AccusationAssessment.StronglySupported &&
+      corroboratedAccusation.IndependentReporterCount == 2 &&
+      corroboratedAccusation.DirectObservationCount == 2,
+    "two independent direct reports can strongly support an accusation without making it infallible");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
