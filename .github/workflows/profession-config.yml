@@ -1,0 +1,37 @@
+name: Profession quota checks
+
+on:
+  push:
+    paths:
+      - "src/Protocol.ProfessionConfig/**"
+      - "tests/Protocol.ProfessionConfig.Tests/**"
+      - "config/profession-quotas.schema.json"
+      - ".github/workflows/profession-config.yml"
+  pull_request:
+    paths:
+      - "src/Protocol.ProfessionConfig/**"
+      - "tests/Protocol.ProfessionConfig.Tests/**"
+      - "config/profession-quotas.schema.json"
+      - ".github/workflows/profession-config.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quota-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build quota configuration library
+        run: dotnet build src/Protocol.ProfessionConfig/Protocol.ProfessionConfig.csproj --configuration Release
+
+      - name: Run quota configuration tests
+        run: dotnet run --project tests/Protocol.ProfessionConfig.Tests/Protocol.ProfessionConfig.Tests.csproj --configuration Release
