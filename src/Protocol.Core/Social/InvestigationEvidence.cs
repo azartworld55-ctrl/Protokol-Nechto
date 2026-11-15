@@ -50,13 +50,13 @@ public sealed record InvestigationEvidence
     public double Confidence { get; }
     public InvestigationEvidenceKind Kind { get; }
 
-    public double WeightedStrength => Confidence * Kind switch
+    public double WeightedStrength => Confidence * (Kind switch
     {
         InvestigationEvidenceKind.DirectObservation => 0.9,
         InvestigationEvidenceKind.PhysicalTrace => 0.65,
         InvestigationEvidenceKind.Rumor => 0.3,
         _ => 0
-    };
+    });
 }
 
 public sealed record EvidenceAssessment(
