@@ -356,6 +356,34 @@ Check(mapContacts.Any(contact =>
         contact.SecondResidentId == rumorRecipient.Id),
     "NPCs outside player vision still have their own social contacts");
 
+var visibleEventWitnesses = perception.GetResidentsWhoCanSee(
+    mapSnapshot, new Protocol.Core.Simulation.GridPosition(2, 2), sightRadius: 6);
+Check(visibleEventWitnesses.SetEquals(new[] { residentA.Id, residentB.Id }),
+    "event witnesses are derived from actual map visibility");
+var visibleTiles = perception.GetVisibleCells(mapSnapshot, residentA.Id, sightRadius: 6);
+Check(visibleTiles.Contains(new Protocol.Core.Simulation.GridPosition(2, 2)) &&
+      !visibleTiles.Contains(new Protocol.Core.Simulation.GridPosition(4, 2)),
+    "the visible tile set is blocked by the intervening wall");
+
+var contactMinds = new Dictionary<Guid, Protocol.Core.Simulation.ResidentMind>
+{
+    [residentA.Id] = new(residentA),
+    [residentB.Id] = new(residentB),
+    [witness.Id] = new(witness),
+    [rumorRecipient.Id] = new(rumorRecipient)
+};
+var mapContactGraph = new RelationshipGraph();
+var contactRuntime = new Protocol.Core.Simulation.StationSocialContactRuntime();
+var processedContacts = contactRuntime.ProcessMapContacts(
+    mapSnapshot, contactMinds, mapContactGraph, tick: 1001, random: new Random(1),
+    conversationRadius: 2);
+Check(processedContacts.Count == 2,
+    "map-derived contacts are passed into the social contact processor");
+Check(mapContactGraph.Get(residentA.Id, residentB.Id).Familiarity == 1 &&
+      mapContactGraph.Get(witness.Id, rumorRecipient.Id).Familiarity == 1,
+    "both visible and off-screen NPC pairs process their own meetings");
+
+
 var doorMap = new Protocol.Core.Simulation.StationMapSnapshot(
     3,
     1,
@@ -421,5 +449,20 @@ Check(playerSimulation.PlayerTasks.CreateHudSnapshot().ActiveCount == 0,
 Check(playerSimulation.PlayerTasks.CreateHudSnapshot(includeFinished: true)
         .Tasks.Single().Status == Protocol.Core.Simulation.PlayerTaskStatus.Completed,
     "completed tasks remain available in the expanded task history");
+
+var rejectedUnknownPlayer = false;
+try
+{
+    _ = new Protocol.Core.Simulation.StationSimulation(
+        new[] { new Protocol.Core.Simulation.ResidentMind(residentA) },
+        playerResidentId: residentB.Id);
+}
+catch (ArgumentException)
+{
+    rejectedUnknownPlayer = true;
+}
+Check(rejectedUnknownPlayer,
+    "the personal task board cannot be attached to a resident outside the simulation");
+
 
 Console.WriteLine("All Protocol.Core smoke checks passed.");
