@@ -66,6 +66,9 @@ public sealed class IncidentMemoryService
         var added = false;
         foreach (var memory in knownMemories)
         {
+            if (memory.Tick > submittedAtTick)
+                continue;
+
             var kind = memory.Origin == MemoryOrigin.Observation
                 ? InvestigationEvidenceKind.DirectObservation
                 : InvestigationEvidenceKind.Rumor;
@@ -73,7 +76,7 @@ public sealed class IncidentMemoryService
                 investigatorId,
                 caseFile.SuspectId,
                 memory.EventCode,
-                Math.Min(memory.Tick, submittedAtTick),
+                memory.Tick,
                 memory.Confidence,
                 kind));
         }
