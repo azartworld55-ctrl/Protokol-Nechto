@@ -915,4 +915,82 @@ catch (ArgumentException)
 Check(rejectedDuplicatePawn,
     "map conversion rejects duplicate runtime pawn observations");
 
+
+
+// Runtime incident bridge resolves pawn IDs and records only actual witnesses.
+var incidentRuntimeRegistry = new Protocol.Core.Simulation.ResidentRuntimeRegistry();
+incidentRuntimeRegistry.Bind("actor-pawn", residentA.Id);
+incidentRuntimeRegistry.Bind("victim-pawn", residentB.Id);
+incidentRuntimeRegistry.Bind("near-witness-pawn", reporterC.Id);
+incidentRuntimeRegistry.Bind("occluded-witness-pawn", witness.Id);
+var incidentMapCells = Enumerable
+    .Repeat(Protocol.Core.Simulation.MapCell.Floor, 15)
+    .ToArray();
+incidentMapCells[7] = Protocol.Core.Simulation.MapCell.Wall; // (2, 1)
+var incidentMap = mapBuilder.Build(
+    5,
+    3,
+    incidentMapCells,
+    new[]
+    {
+        new Protocol.Core.Simulation.ResidentMapObservation(
+            "actor-pawn", new Protocol.Core.Simulation.GridPosition(0, 1)),
+        new Protocol.Core.Simulation.ResidentMapObservation(
+            "victim-pawn", new Protocol.Core.Simulation.GridPosition(1, 1)),
+        new Protocol.Core.Simulation.ResidentMapObservation(
+            "near-witness-pawn", new Protocol.Core.Simulation.GridPosition(1, 2)),
+        new Protocol.Core.Simulation.ResidentMapObservation(
+            "occluded-witness-pawn", new Protocol.Core.Simulation.GridPosition(4, 1))
+    },
+    incidentRuntimeRegistry);
+var runtimeIncidentJournals = new Dictionary<Guid, MemoryJournal>
+{
+    [residentA.Id] = new MemoryJournal(),
+    [residentB.Id] = new MemoryJournal(),
+    [reporterC.Id] = new MemoryJournal(),
+    [witness.Id] = new MemoryJournal()
+};
+var runtimeIncident = new Protocol.Core.Simulation.RuntimeIncidentBridge().RecordAt(
+    "actor-pawn",
+    "victim-pawn",
+    "incident.engine-room.sabotage.1300",
+    1300,
+    ResidentIncidentKind.Sabotage,
+    new Protocol.Core.Simulation.GridPosition(1, 1),
+    sightRadius: 5,
+    incidentMap,
+    incidentRuntimeRegistry,
+    runtimeIncidentJournals);
+Check(runtimeIncident.Incident.ActorId == residentA.Id &&
+      runtimeIncident.Incident.AffectedResidentId == residentB.Id,
+    "runtime incident bridge resolves actor and affected pawn IDs");
+Check(runtimeIncident.ObserverIds.Contains(residentB.Id) &&
+      runtimeIncident.ObserverIds.Contains(reporterC.Id) &&
+      !runtimeIncident.ObserverIds.Contains(witness.Id),
+    "runtime incident witnesses respect line of sight while affected residents are informed");
+Check(runtimeIncident.RecordedJournalCount == 2 &&
+      runtimeIncidentJournals[residentB.Id].Entries.Single().EventCode ==
+          "incident.engine-room.sabotage.1300" &&
+      runtimeIncidentJournals[reporterC.Id].Entries.Single().Origin == MemoryOrigin.Observation,
+    "runtime incident is recorded only in the affected resident and visible witness journals");
+Check(runtimeIncidentJournals[residentA.Id].Entries.Count == 0 &&
+      runtimeIncidentJournals[witness.Id].Entries.Count == 0,
+    "the actor and a resident hidden behind a wall do not receive an observer memory");
+
+var rejectedUnregisteredActor = false;
+try
+{
+    _ = new Protocol.Core.Simulation.RuntimeIncidentBridge().RecordAt(
+        "unknown-pawn", null, "incident.invalid", 1301,
+        ResidentIncidentKind.Emergency,
+        new Protocol.Core.Simulation.GridPosition(1, 1), 5,
+        incidentMap, incidentRuntimeRegistry, runtimeIncidentJournals);
+}
+catch (InvalidOperationException)
+{
+    rejectedUnregisteredActor = true;
+}
+Check(rejectedUnregisteredActor,
+    "runtime incident bridge rejects actors without registered resident identities");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
