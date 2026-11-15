@@ -9,11 +9,13 @@ namespace Protocol.Core.Simulation;
 public sealed class StationSimulation
 {
     private readonly ResidentDecisionEngine _decisionEngine;
+    private readonly ResidentWorkPlanner _workPlanner;
 
     public StationSimulation(
         IEnumerable<ResidentMind> residents,
         RelationshipGraph? relationships = null,
-        ResidentDecisionEngine? decisionEngine = null)
+        ResidentDecisionEngine? decisionEngine = null,
+        ResidentWorkPlanner? workPlanner = null)
     {
         ArgumentNullException.ThrowIfNull(residents);
         Minds = residents.ToDictionary(mind => mind.Resident.Id);
@@ -22,10 +24,13 @@ public sealed class StationSimulation
 
         Relationships = relationships ?? new RelationshipGraph();
         _decisionEngine = decisionEngine ?? new ResidentDecisionEngine();
+        _workPlanner = workPlanner ?? new ResidentWorkPlanner();
+        ActiveWorkOrders = Array.Empty<ResidentWorkOrder>();
     }
 
     public IReadOnlyDictionary<Guid, ResidentMind> Minds { get; }
     public RelationshipGraph Relationships { get; }
+    public IReadOnlyList<ResidentWorkOrder> ActiveWorkOrders { get; private set; }
     public long Tick { get; private set; }
 
     public IReadOnlyDictionary<Guid, ResidentAction> AdvanceHour(int hourOfDay)
@@ -50,6 +55,7 @@ public sealed class StationSimulation
             actions.Add(mind.Resident.Id, action);
         }
 
+        ActiveWorkOrders = _workPlanner.Plan(Minds.Values, hourOfDay);
         return actions;
     }
 }
