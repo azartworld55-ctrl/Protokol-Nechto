@@ -820,4 +820,99 @@ Check(incidentMemoryService.TrySubmitPhysicalTrace(
       noKnowledgeCase.Evidence.Single().Kind == InvestigationEvidenceKind.PhysicalTrace,
     "a separately observed physical trace can be added without granting hidden knowledge");
 
+
+
+// Stable runtime identity bindings and map snapshot conversion.
+var runtimeRegistry = new Protocol.Core.Simulation.ResidentRuntimeRegistry();
+Check(runtimeRegistry.Bind("pawn-1001", residentA.Id),
+    "a runtime pawn can be bound to one stable resident identity");
+Check(runtimeRegistry.Bind("pawn-1001", residentA.Id) && runtimeRegistry.Count == 1,
+    "repeating an identical runtime binding is idempotent");
+Check(!runtimeRegistry.Bind("pawn-1001", residentB.Id) &&
+      !runtimeRegistry.Bind("pawn-1002", residentA.Id) &&
+      runtimeRegistry.Count == 1,
+    "runtime pawn and resident identities cannot be rebound ambiguously");
+Check(runtimeRegistry.TryGetResidentId("pawn-1001", out var mappedResidentId) &&
+      mappedResidentId == residentA.Id,
+    "runtime pawn IDs resolve to their core resident identity");
+Check(runtimeRegistry.TryGetRuntimePawnId(residentA.Id, out var mappedRuntimeId) &&
+      mappedRuntimeId == "pawn-1001",
+    "core resident IDs resolve back to their runtime pawn ID");
+
+var runtimeSnapshot = runtimeRegistry.CreateSnapshot();
+var restoredRuntimeRegistry =
+    new Protocol.Core.Simulation.ResidentRuntimeRegistry(runtimeSnapshot);
+Check(restoredRuntimeRegistry.Count == 1 &&
+      restoredRuntimeRegistry.TryGetResidentId("pawn-1001", out var restoredResidentId) &&
+      restoredResidentId == residentA.Id,
+    "runtime identity bindings can be restored from a versioned snapshot");
+Check(runtimeRegistry.UnbindRuntimePawn("pawn-1001") &&
+      !runtimeRegistry.TryGetResidentId("pawn-1001", out _) &&
+      restoredRuntimeRegistry.TryGetResidentId("pawn-1001", out _),
+    "unbinding a live registry does not mutate an earlier save snapshot");
+
+var mapRegistry = new Protocol.Core.Simulation.ResidentRuntimeRegistry();
+mapRegistry.Bind("pawn-a", residentA.Id);
+mapRegistry.Bind("pawn-b", residentB.Id);
+var mapBuilder = new Protocol.Core.Simulation.StationMapSnapshotBuilder();
+var builtMap = mapBuilder.Build(
+    4,
+    3,
+    Enumerable.Repeat(Protocol.Core.Simulation.MapCell.Floor, 12),
+    new[]
+    {
+        new Protocol.Core.Simulation.ResidentMapObservation(
+            "pawn-a", new Protocol.Core.Simulation.GridPosition(1, 1)),
+        new Protocol.Core.Simulation.ResidentMapObservation(
+            "pawn-b", new Protocol.Core.Simulation.GridPosition(2, 1))
+    },
+    mapRegistry);
+Check(builtMap.ResidentPositions[residentA.Id] ==
+      new Protocol.Core.Simulation.GridPosition(1, 1) &&
+      builtMap.ResidentPositions[residentB.Id] ==
+      new Protocol.Core.Simulation.GridPosition(2, 1),
+    "map snapshots translate runtime pawn IDs into stable resident IDs");
+
+var rejectedUnknownPawn = false;
+try
+{
+    _ = mapBuilder.Build(
+        4, 3,
+        Enumerable.Repeat(Protocol.Core.Simulation.MapCell.Floor, 12),
+        new[]
+        {
+            new Protocol.Core.Simulation.ResidentMapObservation(
+                "unregistered-pawn", new Protocol.Core.Simulation.GridPosition(0, 0))
+        },
+        mapRegistry);
+}
+catch (InvalidOperationException)
+{
+    rejectedUnknownPawn = true;
+}
+Check(rejectedUnknownPawn,
+    "map conversion rejects runtime pawns without a registered resident identity");
+
+var rejectedDuplicatePawn = false;
+try
+{
+    _ = mapBuilder.Build(
+        4, 3,
+        Enumerable.Repeat(Protocol.Core.Simulation.MapCell.Floor, 12),
+        new[]
+        {
+            new Protocol.Core.Simulation.ResidentMapObservation(
+                "pawn-a", new Protocol.Core.Simulation.GridPosition(0, 0)),
+            new Protocol.Core.Simulation.ResidentMapObservation(
+                "pawn-a", new Protocol.Core.Simulation.GridPosition(1, 0))
+        },
+        mapRegistry);
+}
+catch (ArgumentException)
+{
+    rejectedDuplicatePawn = true;
+}
+Check(rejectedDuplicatePawn,
+    "map conversion rejects duplicate runtime pawn observations");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
