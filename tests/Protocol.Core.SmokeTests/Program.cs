@@ -320,4 +320,106 @@ catch (ArgumentException)
 }
 Check(rejectedContactPair, "contact processing rejects mismatched participant identities");
 
+
+
+// Map geometry: visibility is personal and walls/closed doors occlude it.
+var mapCells = Enumerable.Repeat(
+    Protocol.Core.Simulation.MapCell.Floor, 7 * 5).ToArray();
+for (var z = 0; z < 5; z++)
+    mapCells[z * 7 + 3] = Protocol.Core.Simulation.MapCell.Wall;
+var mapSnapshot = new Protocol.Core.Simulation.StationMapSnapshot(
+    7,
+    5,
+    mapCells,
+    new Dictionary<Guid, Protocol.Core.Simulation.GridPosition>
+    {
+        [residentA.Id] = new(1, 2),
+        [residentB.Id] = new(2, 2),
+        [witness.Id] = new(4, 2),
+        [rumorRecipient.Id] = new(5, 2)
+    });
+var perception = new Protocol.Core.Simulation.StationPerceptionService();
+var playerVisibleResidents = perception.GetVisibleResidents(
+    mapSnapshot, residentA.Id, sightRadius: 6);
+Check(playerVisibleResidents.SetEquals(new[] { residentB.Id }),
+    "the observer sees only residents with an unobstructed line of sight");
+var mapContacts = perception.DetectSocialContacts(
+    mapSnapshot, tick: 1000, conversationRadius: 2);
+Check(mapContacts.Count == 2,
+    "map contact detection finds both physically reachable pairs on separate sides of a wall");
+Check(mapContacts.Any(contact =>
+        contact.FirstResidentId == residentA.Id &&
+        contact.SecondResidentId == residentB.Id),
+    "residents on the same side of a wall can meet");
+Check(mapContacts.Any(contact =>
+        contact.FirstResidentId == witness.Id &&
+        contact.SecondResidentId == rumorRecipient.Id),
+    "NPCs outside player vision still have their own social contacts");
+
+var doorMap = new Protocol.Core.Simulation.StationMapSnapshot(
+    3,
+    1,
+    new[]
+    {
+        Protocol.Core.Simulation.MapCell.Floor,
+        Protocol.Core.Simulation.MapCell.ClosedDoor,
+        Protocol.Core.Simulation.MapCell.Floor
+    },
+    new Dictionary<Guid, Protocol.Core.Simulation.GridPosition>
+    {
+        [residentA.Id] = new(0, 0),
+        [residentB.Id] = new(2, 0)
+    });
+Check(!doorMap.HasLineOfSight(new(0, 0), new(2, 0)),
+    "a closed door blocks line of sight");
+
+var cornerMap = new Protocol.Core.Simulation.StationMapSnapshot(
+    2,
+    2,
+    new[]
+    {
+        Protocol.Core.Simulation.MapCell.Floor,
+        Protocol.Core.Simulation.MapCell.Wall,
+        Protocol.Core.Simulation.MapCell.Wall,
+        Protocol.Core.Simulation.MapCell.Floor
+    },
+    new Dictionary<Guid, Protocol.Core.Simulation.GridPosition>());
+Check(!cornerMap.HasLineOfSight(new(0, 0), new(1, 1)),
+    "line of sight cannot pass diagonally between two blocking corners");
+
+// The controlled resident gets a dedicated task board and HUD snapshot.
+var playerSimulation = new Protocol.Core.Simulation.StationSimulation(
+    new[]
+    {
+        new Protocol.Core.Simulation.ResidentMind(residentA),
+        new Protocol.Core.Simulation.ResidentMind(residentB),
+        new Protocol.Core.Simulation.ResidentMind(witness)
+    },
+    playerResidentId: residentA.Id);
+Check(playerSimulation.PlayerTasks is not null &&
+      playerSimulation.PlayerTasks.PlayerResidentId == residentA.Id,
+    "the simulation creates a personal task board for the controlled resident");
+var playerTaskId = Guid.NewGuid();
+playerSimulation.PlayerTasks!.Assign(new Protocol.Core.Simulation.PlayerTask(
+    playerTaskId,
+    "Проверить лабораторию",
+    "Осмотреть оборудование и отметить неисправности.",
+    "Сюжет",
+    Protocol.Core.Simulation.PlayerTaskPriority.High,
+    createdAtTick: 12));
+var taskHud = playerSimulation.PlayerTasks.CreateHudSnapshot();
+Check(taskHud.Header == "МОИ ЗАДАНИЯ" &&
+      taskHud.ActiveCount == 1 &&
+      taskHud.Tasks.Single().Id == playerTaskId,
+    "the player HUD exposes the player's active task with its title and details");
+Check(taskHud.PlayerResidentId == residentA.Id,
+    "the task HUD is bound to the controlled resident identity");
+Check(playerSimulation.PlayerTasks.Complete(playerTaskId),
+    "the player can complete an assigned task");
+Check(playerSimulation.PlayerTasks.CreateHudSnapshot().ActiveCount == 0,
+    "completed tasks disappear from the active task HUD");
+Check(playerSimulation.PlayerTasks.CreateHudSnapshot(includeFinished: true)
+        .Tasks.Single().Status == Protocol.Core.Simulation.PlayerTaskStatus.Completed,
+    "completed tasks remain available in the expanded task history");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
