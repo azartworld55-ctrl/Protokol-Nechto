@@ -465,4 +465,88 @@ Check(rejectedUnknownPlayer,
     "the personal task board cannot be attached to a resident outside the simulation");
 
 
+
+
+// Parasite lifecycle: an isolated attack copies identity and memories, while
+// a witness or another nearby resident prevents the attack.
+var parasiteResident = roster.Residents.Single(item => item.Id == roster.ParasiteResidentId);
+var playerResident = roster.Residents.Single(item => item.Id == roster.PlayerResidentId);
+var nextPlayerResident = roster.Residents.First(item =>
+    item.Id != roster.PlayerResidentId && item.Id != roster.ParasiteResidentId);
+var parasiteMemory = new MemoryJournal();
+parasiteMemory.Remember(new MemoryEntry(
+    parasiteResident.Id, "parasite.observed.station", 20, 1.0, MemoryOrigin.Observation));
+var victimMemory = new MemoryJournal();
+victimMemory.Remember(new MemoryEntry(
+    playerResident.Id, "victim.private.discovery", 45, 0.95, MemoryOrigin.Observation));
+victimMemory.Hear(new MemoryEntry(
+    witness.Id, "station.old.rumor", 30, 0.8, MemoryOrigin.Observation), 50, 0.7);
+var parasiteMind = new Protocol.Core.Simulation.ResidentMind(
+    parasiteResident, memories: parasiteMemory);
+var victimMind = new Protocol.Core.Simulation.ResidentMind(
+    playerResident, memories: victimMemory);
+var parasiteLifecycle = new Protocol.Core.Simulation.ParasiteLifecycle(
+    parasiteResident.Id,
+    new[]
+    {
+        parasiteMind,
+        victimMind,
+        new Protocol.Core.Simulation.ResidentMind(nextPlayerResident),
+        new Protocol.Core.Simulation.ResidentMind(witness),
+        new Protocol.Core.Simulation.ResidentMind(rumorRecipient)
+    },
+    playerResident.Id);
+var attackBlockedByWitness = parasiteLifecycle.TryConsume(
+    victimMind,
+    new[] { parasiteResident.Id, playerResident.Id },
+    new[] { witness.Id });
+Check(!attackBlockedByWitness.Succeeded &&
+      attackBlockedByWitness.Failure ==
+          Protocol.Core.Simulation.ParasiteAttackFailure.WitnessPresent &&
+      parasiteLifecycle.IsAlive(playerResident.Id),
+    "a witnessed attack is rejected without changing the victim's life state");
+var attackBlockedByCrowd = parasiteLifecycle.TryConsume(
+    victimMind,
+    new[] { parasiteResident.Id, playerResident.Id, witness.Id },
+    Array.Empty<Guid>());
+Check(!attackBlockedByCrowd.Succeeded &&
+      attackBlockedByCrowd.Failure ==
+          Protocol.Core.Simulation.ParasiteAttackFailure.NotAlone,
+    "an attack is rejected when anyone else is present, even without a witness");
+var successfulConsumption = parasiteLifecycle.TryConsume(
+    victimMind,
+    new[] { parasiteResident.Id, playerResident.Id },
+    Array.Empty<Guid>());
+Check(successfulConsumption.Succeeded &&
+      successfulConsumption.PlayerWasKilled &&
+      successfulConsumption.MemoriesCopied == 2,
+    "an isolated attack consumes the victim and copies all of their memories");
+Check(!parasiteLifecycle.IsAlive(playerResident.Id) &&
+      parasiteLifecycle.DeadResidentIds.Contains(playerResident.Id),
+    "the consumed resident is marked dead");
+Check(parasiteLifecycle.CurrentDisguise?.Name == playerResident.Name &&
+      parasiteLifecycle.CurrentDisguise?.Profession == playerResident.Profession &&
+      parasiteLifecycle.CurrentDisguise?.Age == playerResident.Age,
+    "the parasite adopts the victim's visible identity and social role");
+Check(parasiteMemory.HasHeard("victim.private.discovery") &&
+      parasiteMemory.HasHeard("station.old.rumor"),
+    "the parasite inherits both direct memories and rumors");
+Check(parasiteLifecycle.PlayerResidentId is null,
+    "the player slot is cleared when the controlled human dies");
+Check(!parasiteLifecycle.SelectPlayer(parasiteResident.Id),
+    "the parasite can never be selected as the player character");
+Check(parasiteLifecycle.SelectPlayer(nextPlayerResident.Id) &&
+      parasiteLifecycle.PlayerResidentId == nextPlayerResident.Id,
+    "the player can take control of another living human after death");
+Check(!parasiteLifecycle.SelectPlayer(playerResident.Id),
+    "a dead resident cannot be selected again");
+var repeatedConsumption = parasiteLifecycle.TryConsume(
+    victimMind,
+    new[] { parasiteResident.Id, playerResident.Id },
+    Array.Empty<Guid>());
+Check(!repeatedConsumption.Succeeded &&
+      repeatedConsumption.Failure ==
+          Protocol.Core.Simulation.ParasiteAttackFailure.TargetAlreadyDead,
+    "a consumed resident cannot be consumed a second time");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
