@@ -143,4 +143,83 @@ catch (ArgumentException)
 }
 Check(rejectedParasitePlayer, "roster rejects assigning the parasite as the player");
 
+
+var witness = new Resident(Guid.NewGuid(), "Лена", 34, "Радист");
+var rumorRecipient = new Resident(Guid.NewGuid(), "Борис", 42, "Техник");
+var eventSource = new MemoryJournal();
+var targetJournal = new MemoryJournal();
+var witnessJournal = new MemoryJournal();
+var recipientJournal2 = new MemoryJournal();
+var eventGraph = new RelationshipGraph();
+var eventMemoryService = new SocialEventMemoryService();
+var witnessedEvent = new SocialEvent(
+    residentA.Id,
+    residentB.Id,
+    tick: 510,
+    SocialEventKind.Helped);
+
+Check(eventMemoryService.RecordObservation(
+        witnessedEvent, residentA.Id, eventSource, eventGraph),
+    "the event actor stores a personal observation");
+Check(eventMemoryService.RecordObservation(
+        witnessedEvent, residentB.Id, targetJournal, eventGraph),
+    "the event target stores a personal observation");
+Check(eventMemoryService.RecordObservation(
+        witnessedEvent, witness.Id, witnessJournal, eventGraph),
+    "a supplied witness stores a personal observation");
+Check(!eventMemoryService.RecordObservation(
+        witnessedEvent, witness.Id, witnessJournal, eventGraph),
+    "the same event is not recorded twice in one journal");
+Check(eventGraph.Get(residentA.Id, witness.Id).Trust == 18,
+    "a witness updates their relationship with the event actor");
+Check(eventGraph.Get(residentA.Id, residentB.Id).Trust == 18,
+    "the target updates their relationship with the event actor");
+Check(targetJournal.Entries.Single().Origin == MemoryOrigin.Observation,
+    "the target's knowledge is recorded as direct observation");
+
+Check(eventMemoryService.TryShareRumor(
+        witnessedEvent,
+        rumorRecipient.Id,
+        eventSource,
+        recipientJournal2,
+        receivedAtTick: 540,
+        relationship: new RelationshipState(100, 100),
+        hasFaceToFaceContact: true,
+        random: new Random(1),
+        relationships: eventGraph),
+    "a known social event can spread through a direct conversation");
+Check(recipientJournal2.Entries.Single().Origin == MemoryOrigin.Rumor,
+    "the receiver records the event as a rumor, not an observation");
+Check(eventGraph.Get(residentA.Id, rumorRecipient.Id).Trust == 18,
+    "hearing the event changes the receiver's opinion of its actor");
+
+var hungryMind = new Protocol.Core.Simulation.ResidentMind(
+    residentA,
+    new Protocol.Core.Simulation.ResidentNeeds(hunger: 100, fatigue: 0, social: 0, stress: 0));
+var decisionEngine = new Protocol.Core.Simulation.ResidentDecisionEngine();
+var urgentAction = decisionEngine.ChooseNext(
+    hungryMind,
+    new[] { residentA, residentB, witness },
+    eventGraph,
+    hourOfDay: 14);
+Check(urgentAction == Protocol.Core.Simulation.ResidentAction.Eat,
+    "urgent hunger can outweigh ordinary work and social preferences");
+
+var simulation = new Protocol.Core.Simulation.StationSimulation(
+    new[]
+    {
+        new Protocol.Core.Simulation.ResidentMind(residentA),
+        new Protocol.Core.Simulation.ResidentMind(residentB),
+        new Protocol.Core.Simulation.ResidentMind(witness),
+        new Protocol.Core.Simulation.ResidentMind(rumorRecipient)
+    },
+    eventGraph);
+var firstHour = simulation.AdvanceHour(hourOfDay: 9);
+Check(firstHour.Count == 4 && simulation.Tick == 1,
+    "station simulation advances every resident for one hour");
+Check(simulation.Minds.Values.All(mind => mind.CurrentAction.HasValue),
+    "each simulated resident receives an autonomous action");
+Check(simulation.Minds.Values.All(mind => mind.Needs.Hunger > 0),
+    "resident needs are tracked independently during simulation");
+
 Console.WriteLine("All Protocol.Core smoke checks passed.");
