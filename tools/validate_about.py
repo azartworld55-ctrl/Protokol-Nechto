@@ -16,17 +16,23 @@ except ET.ParseError as exc:
     print(f"ERROR: About.xml is not valid XML: {exc}")
     sys.exit(1)
 
-required = ("name", "author", "packageId", "supportedVersions", "description")
-missing = [tag for tag in required if root.find(tag) is None or not (root.findtext(tag) or "").strip()]
 if root.tag != "ModMetaData":
     print("ERROR: root element must be ModMetaData.")
     sys.exit(1)
+
+text_fields = ("name", "author", "packageId", "description")
+missing = [
+    tag for tag in text_fields
+    if not (root.findtext(tag) or "").strip()
+]
+if root.find("supportedVersions") is None:
+    missing.append("supportedVersions")
 
 if missing:
     print("ERROR: missing required metadata: " + ", ".join(missing))
     sys.exit(1)
 
-versions = [node.text for node in root.findall("supportedVersions/li")]
+versions = [(node.text or "").strip() for node in root.findall("supportedVersions/li")]
 if "1.7" not in versions:
     print("ERROR: supportedVersions must include 1.7.")
     sys.exit(1)
