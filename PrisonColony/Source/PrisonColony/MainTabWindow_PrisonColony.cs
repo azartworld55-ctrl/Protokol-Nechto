@@ -1,4 +1,3 @@
-using System.Text;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -90,9 +89,10 @@ namespace AzartWorld.PrisonColony
         {
             foreach (Pawn pawn in Find.Selector.SelectedPawns)
             {
-                if (pawn == null || pawn.guest == null) continue;
-                pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
-                state.RegisterArrival(contract.Id, pawn);
+                if (pawn == null || pawn.guest == null || !pawn.RaceProps.Humanlike) continue;
+                if (pawn.Faction == Faction.OfPlayer) continue;
+                if (state.RegisterArrival(contract.Id, pawn))
+                    pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
             }
         }
 
