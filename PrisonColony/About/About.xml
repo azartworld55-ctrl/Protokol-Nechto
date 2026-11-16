@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Prison Colony</name>
+  <author>AzartWorld</author>
+  <packageId>azartworld55.prisoncolony</packageId>
+  <supportedVersions>
+    <li>1.7</li>
+  </supportedVersions>
+  <description>
+    Управление исправительным учреждением на планете: контракты на содержание заключённых, персонал, инфраструктура и безопасность.
+    Ранняя техническая версия для RimWorld 1.7 / Ports1de Beta 14.
+  </description>
+</ModMetaData>
