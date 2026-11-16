@@ -40,6 +40,13 @@ public sealed class ProfessionRosterComposer
         }
 
         var residentSnapshot = residents.ToArray();
+        if (residentSnapshot.Length != ProfessionQuotaConfiguration.RequiredResidentCount)
+        {
+            throw new ArgumentException(
+                $"A roster must enumerate exactly {ProfessionQuotaConfiguration.RequiredResidentCount} residents.",
+                nameof(residents));
+        }
+
         if (residentSnapshot.Any(resident => resident is null))
             throw new ArgumentException("A roster cannot contain null residents.", nameof(residents));
 
