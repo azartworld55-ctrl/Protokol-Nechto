@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Ports1de Runtime Probe</name>
+  <author>azartworld55</author>
+  <packageId>azartworld55.ports1de.runtimeprobe</packageId>
+  <supportedVersions>
+    <li>1.7</li>
+  </supportedVersions>
+  <description>
+    Диагностический мод для проверки загрузки пользовательской DLL в Ports1de.
+    Не содержит Harmony-патчей и не меняет игровой процесс.
+  </description>
+</ModMetaData>
