@@ -134,6 +134,15 @@ namespace AzartWorld.PrisonColony
             return count;
         }
 
+        private int CountOperationalModules(FacilityModuleType type)
+        {
+            int count = 0;
+            foreach (FacilityModuleRecord module in Modules)
+                if (module != null && module.Type == (int)type && module.Operational)
+                    count++;
+            return count;
+        }
+
         public int CountStaff(PrisonStaffRole role)
         {
             int count = 0;
@@ -147,10 +156,10 @@ namespace AzartWorld.PrisonColony
         public int GetSecurityRating()
         {
             int rating = CountStaff(PrisonStaffRole.Guard) * 12;
-            rating += CountModules(FacilityModuleType.SecurityCamera) * 8;
-            rating += CountModules(FacilityModuleType.SecureDoor) * 10;
-            rating += CountModules(FacilityModuleType.AlarmSystem) * 8;
-            rating += CountModules(FacilityModuleType.ControlConsole) * 6;
+            rating += CountOperationalModules(FacilityModuleType.SecurityCamera) * 8;
+            rating += CountOperationalModules(FacilityModuleType.SecureDoor) * 10;
+            rating += CountOperationalModules(FacilityModuleType.AlarmSystem) * 8;
+            rating += CountOperationalModules(FacilityModuleType.ControlConsole) * 6;
             if (CurrentSecurityMode == PrisonSecurityMode.IncreasedAttention) rating += 10;
             if (CurrentSecurityMode == PrisonSecurityMode.Quarantine) rating += 15;
             if (CurrentSecurityMode == PrisonSecurityMode.Emergency) rating += 20;
@@ -228,12 +237,6 @@ namespace AzartWorld.PrisonColony
             foreach (FacilityModuleRecord module in Modules)
                 if (module != null && module.Type == (int)FacilityModuleType.Generator)
                     module.Operational = module.Integrity > 0;
-        }
-
-        private bool IsPrisoner(Pawn pawn)
-        {
-            // Prisoners are filtered by the owning game component before staff assignment.
-            return false;
         }
 
         private static void ModuleStats(FacilityModuleType type, out int cost, out int demand, out int upkeep)
