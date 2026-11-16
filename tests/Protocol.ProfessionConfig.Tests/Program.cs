@@ -383,7 +383,7 @@ Expect<ArgumentException>(
     "roster composer rejects thirteen residents");
 
 Expect<ArgumentNullException>(
-    () => composer.Compose(
+    () => composer.Compose<ResidentDraft>(
         null!,
         configuration,
         seed: 417,
