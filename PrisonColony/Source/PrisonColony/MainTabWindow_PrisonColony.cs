@@ -57,7 +57,7 @@ namespace AzartWorld.PrisonColony
                 {
                     if (Widgets.ButtonText(new Rect(0f, y, 180f, 30f), "Принять контракт"))
                     {
-                        state.AcceptOffer(contract.Id, PrototypeCapacity - state.Prisoners.Count);
+                        state.AcceptOffer(contract.Id, PrototypeCapacity - state.GetCommittedCapacity());
                     }
                     y += 36f;
                 }
