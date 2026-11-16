@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <MainButtonDef>
+    <defName>PrisonColony_MainButton</defName>
+    <label>Тюрьма</label>
+    <description>Управление учреждением и контрактами на содержание заключённых.</description>
+    <tabWindowClass>AzartWorld.PrisonColony.MainTabWindow_PrisonColony</tabWindowClass>
+    <order>90</order>
+    <iconPath>UI/Buttons/Architect</iconPath>
+  </MainButtonDef>
+</Defs>
