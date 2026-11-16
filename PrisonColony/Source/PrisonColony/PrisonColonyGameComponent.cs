@@ -100,7 +100,7 @@ namespace AzartWorld.PrisonColony
             PrisonContract contract = FindContract(contractId);
             if (contract == null || contract.CurrentStatus != PrisonContractStatus.Accepted)
                 return false;
-            if (pawn == null || !pawn.RaceProps.Humanlike || FindPrisoner(pawn) != null)
+            if (pawn == null || !pawn.Spawned || !pawn.RaceProps.Humanlike || FindPrisoner(pawn) != null)
                 return false;
             if (contract.RegisteredPrisoners >= contract.PrisonerCount)
                 return false;
@@ -184,7 +184,7 @@ namespace AzartWorld.PrisonColony
         {
             int count = 0;
             foreach (PrisonerRecord prisoner in Prisoners)
-                if (prisoner != null && prisoner.ContractId == contractId && prisoner.Pawn != null)
+                if (prisoner != null && prisoner.ContractId == contractId && prisoner.Pawn != null && prisoner.Pawn.Spawned && !prisoner.Pawn.Destroyed)
                     count++;
             return count;
         }
