@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <!-- Ports1de Beta 14 bundles RimWorld 1.7 built for .NET 10. -->
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>PrisonColony</AssemblyName>
@@ -9,21 +10,26 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <OutputPath>../../Assemblies/</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-  </PropertyGroup>
-
-  <!-- Set RimWorldManagedPath to the game's Managed folder when building.
-       Example: dotnet build -p:RimWorldManagedPath=".../RimWorldWin64_Data/Managed" -->
-  <PropertyGroup>
     <RimWorldManagedPath Condition="'$(RimWorldManagedPath)' == ''">$(RIMWORLD_MANAGED)</RimWorldManagedPath>
   </PropertyGroup>
 
+  <!--
+    Supply the Managed directory extracted from the user's own Ports1de Beta 14
+    bundled-game archive. Do not commit or redistribute game assemblies.
+    Assembly-CSharp contains Verse/game API types; RimWorld.dll and UnityStubs
+    are separate referenced assemblies in this build.
+  -->
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(RimWorldManagedPath)/Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Verse">
-      <HintPath>$(RimWorldManagedPath)/Verse.dll</HintPath>
+    <Reference Include="RimWorld">
+      <HintPath>$(RimWorldManagedPath)/RimWorld.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityStubs">
+      <HintPath>$(RimWorldManagedPath)/UnityStubs.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
@@ -31,4 +37,17 @@
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+
+  <Target Name="ValidateRimWorldReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(RimWorldManagedPath)' == ''"
+           Text="Set RimWorldManagedPath to the Managed directory extracted from your own Ports1de Beta 14 bundled-game archive." />
+    <Error Condition="!Exists('$(RimWorldManagedPath)/Assembly-CSharp.dll')"
+           Text="Assembly-CSharp.dll was not found in RimWorldManagedPath." />
+    <Error Condition="!Exists('$(RimWorldManagedPath)/RimWorld.dll')"
+           Text="RimWorld.dll was not found in RimWorldManagedPath." />
+    <Error Condition="!Exists('$(RimWorldManagedPath)/UnityStubs.dll')"
+           Text="UnityStubs.dll was not found in RimWorldManagedPath." />
+    <Error Condition="!Exists('$(RimWorldManagedPath)/UnityEngine.CoreModule.dll')"
+           Text="UnityEngine.CoreModule.dll was not found in RimWorldManagedPath." />
+  </Target>
 </Project>
