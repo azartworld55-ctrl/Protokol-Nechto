@@ -390,14 +390,11 @@ Expect<ArgumentNullException>(
         static (resident, professionId) => resident with { ProfessionId = professionId }),
     "roster composer rejects a null resident collection");
 
+var rosterWithNullEntry = unassignedResidents.ToArray();
+rosterWithNullEntry[1] = null!;
 Expect<ArgumentException>(
     () => composer.Compose(
-        new ResidentDraft[]
-        {
-            unassignedResidents[0],
-            null!,
-            .. unassignedResidents.Skip(2)
-        },
+        rosterWithNullEntry,
         configuration,
         seed: 417,
         static (resident, professionId) => resident with { ProfessionId = professionId }),
