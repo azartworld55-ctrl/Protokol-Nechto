@@ -132,8 +132,8 @@ GitHub Actions run `43778660346` завершился со статусом **su
 ## GitHub
 
 - Ежедневная ветка: https://github.com/azartworld55-ctrl/Protokol-Nechto/tree/daily/2026-11-16
-- Кодовый head, проверенный CI: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/cc7708dbedbdc78923ebd2dc4aa767db0df0c7e4
-- Финальный head ветки после добавления этого отчёта: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/bbe447ac84e996922be54c78099080d32d413cee
+- Кодовый commit, проверенный CI: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/cc7708dbedbdc78923ebd2dc4aa767db0df0c7e4
+- Этот отчёт находится в ежедневной ветке по пути `reports/daily/2026-11-16/03-00-review.md`.
 - Исправление JSON Schema: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/77858b2f37db66be9c5b692b4d75b7aac0a52729
 - Расширение регрессионных тестов: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/9dbd16a8c3b70fb0827dc9cb8f2f9476a4fd9f05
 - Обновление документации: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/81151330b636678e25c620f9abec4771d1f1d612
