@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>PrisonColony</AssemblyName>
+    <RootNamespace>AzartWorld.PrisonColony</RootNamespace>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <OutputPath>../../Assemblies/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <!-- Set RimWorldManagedPath to the game's Managed folder when building.
+       Example: dotnet build -p:RimWorldManagedPath=".../RimWorldWin64_Data/Managed" -->
+  <PropertyGroup>
+    <RimWorldManagedPath Condition="'$(RimWorldManagedPath)' == ''">$(RIMWORLD_MANAGED)</RimWorldManagedPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorldManagedPath)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Verse">
+      <HintPath>$(RimWorldManagedPath)/Verse.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RimWorldManagedPath)/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
