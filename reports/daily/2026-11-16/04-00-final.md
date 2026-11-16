@@ -47,6 +47,7 @@
 
 - [PR workflow run 43785111711](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/43785111711) — **success**.
 - [Push workflow run 43785106281](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/43785106281) — **success**.
+- [Post-merge main workflow run 43785231157](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/43785231157) — **success** на merge commit `d32b52c4e8183c776011e8303c1a59065c8db541`.
 - Проверка синтаксиса `config/profession-quotas.schema.json` через `python3 -m json.tool` — success.
 - Release build `Protocol.ProfessionConfig` — success, 0 C# warnings, 0 errors.
 - Smoke tests — success, вывод `All profession quota checks passed.`.
