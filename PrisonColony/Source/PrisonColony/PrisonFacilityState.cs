@@ -98,7 +98,6 @@ namespace AzartWorld.PrisonColony
         {
             if (pawn == null || !pawn.Spawned || !pawn.RaceProps.Humanlike)
                 return false;
-            if (IsPrisoner(pawn)) return false;
 
             PrisonStaffRecord existing = Staff.Find(s => s != null && s.Pawn == pawn);
             if (existing != null)
