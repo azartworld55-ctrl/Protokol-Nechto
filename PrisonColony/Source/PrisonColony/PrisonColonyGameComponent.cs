@@ -144,6 +144,20 @@ namespace AzartWorld.PrisonColony
             return true;
         }
 
+        public int GetCommittedCapacity()
+        {
+            int total = 0;
+            foreach (PrisonContract contract in Contracts)
+            {
+                if (contract == null) continue;
+                if (contract.CurrentStatus == PrisonContractStatus.Accepted ||
+                    contract.CurrentStatus == PrisonContractStatus.Active ||
+                    contract.CurrentStatus == PrisonContractStatus.Departing)
+                    total += contract.PrisonerCount;
+            }
+            return total;
+        }
+
         public PrisonContract FindContract(int contractId)
         {
             return Contracts.Find(c => c != null && c.Id == contractId);
