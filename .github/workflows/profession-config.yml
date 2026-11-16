@@ -25,6 +25,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Validate profession quota JSON Schema syntax
+        run: python3 -m json.tool config/profession-quotas.schema.json > /dev/null
+
       - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
