@@ -14,7 +14,7 @@ namespace AzartWorld.PrisonColony
         public List<PrisonerRecord> Prisoners = new List<PrisonerRecord>();
         public List<PrisonContract> Contracts = new List<PrisonContract>();
         public int SchemaVersion = 2;
-        public int Credits;
+        public int Credits = 250;
         public int NextContractId = 1;
         public int LastProcessedDay = -1;
 
