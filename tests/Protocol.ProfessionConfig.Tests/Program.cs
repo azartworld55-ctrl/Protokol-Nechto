@@ -306,4 +306,119 @@ for (var seed = -256; seed <= 256; seed++)
     }
 }
 
-Console.WriteLine("All profession quota checks passed.");
+var composer = new ProfessionRosterComposer(allocator);
+var unassignedResidents = Enumerable.Range(1, 12)
+    .Select(index => new ResidentDraft(
+        Guid.Parse($"00000000-0000-0000-0000-{index:000000000000}"),
+        $"Resident {index}",
+        "unassigned"))
+    .ToArray();
+
+var composedRoster = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 417,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+
+Check(composedRoster.Count == 12,
+    "roster composer returns exactly twelve residents");
+
+var composedCounts = composedRoster
+    .GroupBy(resident => resident.ProfessionId, StringComparer.OrdinalIgnoreCase)
+    .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+foreach (var quota in configuration.Quotas)
+{
+    Check(composedCounts.TryGetValue(quota.ProfessionId, out var actual) &&
+          actual == quota.Count,
+        $"composed roster exactly matches the quota for {quota.ProfessionId}");
+}
+
+Check(composedRoster.Select(resident => resident.Id)
+        .SequenceEqual(unassignedResidents.Select(resident => resident.Id)) &&
+      composedRoster.Select(resident => resident.Name)
+        .SequenceEqual(unassignedResidents.Select(resident => resident.Name)),
+    "roster composition preserves resident identity and input order");
+
+Check(unassignedResidents.All(resident => resident.ProfessionId == "unassigned"),
+    "roster composition does not mutate the caller's resident objects");
+
+var repeatedRoster = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 417,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+Check(composedRoster.SequenceEqual(repeatedRoster),
+    "the same seed reproduces the complete composed roster");
+
+var alternateRoster = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 418,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+Check(!composedRoster.Select(resident => resident.ProfessionId)
+        .SequenceEqual(alternateRoster.Select(resident => resident.ProfessionId)),
+    "a different seed changes profession placement without changing quotas");
+
+var composedView = (IList<ResidentDraft>)composedRoster;
+Check(composedView.IsReadOnly,
+    "composed roster is exposed as a read-only collection");
+Expect<NotSupportedException>(
+    () => composedView[0] = unassignedResidents[0],
+    "callers cannot replace residents through the composed roster view");
+
+Expect<ArgumentException>(
+    () => composer.Compose(
+        unassignedResidents.Take(11).ToArray(),
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects eleven residents");
+
+Expect<ArgumentException>(
+    () => composer.Compose(
+        unassignedResidents.Append(unassignedResidents[0]).ToArray(),
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects thirteen residents");
+
+Expect<ArgumentNullException>(
+    () => composer.Compose(
+        null!,
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects a null resident collection");
+
+Expect<ArgumentException>(
+    () => composer.Compose(
+        new ResidentDraft[]
+        {
+            unassignedResidents[0],
+            null!,
+            .. unassignedResidents.Skip(2)
+        },
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects null resident entries");
+
+Expect<ArgumentNullException>(
+    () => composer.Compose(
+        unassignedResidents,
+        configuration,
+        seed: 417,
+        null!),
+    "roster composer rejects a null assignment callback");
+
+Expect<InvalidOperationException>(
+    () => composer.Compose<ResidentDraft>(
+        unassignedResidents,
+        configuration,
+        seed: 417,
+        static (_, _) => null!),
+    "roster composer rejects a callback that returns null");
+
+Console.WriteLine("All profession quota checks passed, including roster composition.");
+
+sealed record ResidentDraft(Guid Id, string Name, string ProfessionId);
