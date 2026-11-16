@@ -36,6 +36,18 @@ const string fixture = """
 }
 """;
 
+Expect<ArgumentException>(
+    () => ProfessionQuotaJson.Deserialize(null!),
+    "null JSON input is rejected");
+
+Expect<ArgumentException>(
+    () => ProfessionQuotaJson.Deserialize(" \r\n\t "),
+    "whitespace-only JSON input is rejected");
+
+var normalizedQuota = new ProfessionQuota("  medical-role  ", 12);
+Check(normalizedQuota.ProfessionId == "medical-role",
+    "profession ids are trimmed at the domain boundary");
+
 var configuration = ProfessionQuotaJson.Deserialize(fixture);
 Check(configuration.Quotas.Count == 5,
     "all explicitly configured profession quotas are loaded");
@@ -73,6 +85,25 @@ var serialized = ProfessionQuotaJson.Serialize(configuration);
 var roundTripped = ProfessionQuotaJson.Deserialize(serialized);
 Check(roundTripped.Quotas.SequenceEqual(configuration.Quotas),
     "JSON serialization round-trips the complete quota configuration");
+
+var twelveDistinctQuotas = Enumerable.Range(1, 12)
+    .Select(index => new ProfessionQuota($"profession-{index}", 1))
+    .ToArray();
+var maximumEntryConfiguration = new ProfessionQuotaConfiguration(twelveDistinctQuotas);
+var maximumEntryAllocation = allocator.Allocate(maximumEntryConfiguration, seed: 12);
+Check(maximumEntryConfiguration.Quotas.Count == 12 &&
+      maximumEntryAllocation.Count == 12 &&
+      maximumEntryAllocation.Distinct(StringComparer.Ordinal).Count() == 12,
+    "twelve distinct one-resident quotas are supported without losing assignments");
+
+var escapedIdConfiguration = new ProfessionQuotaConfiguration(new[]
+{
+    new ProfessionQuota("research \"north\" / Δ", 12)
+});
+var escapedIdRoundTrip = ProfessionQuotaJson.Deserialize(
+    ProfessionQuotaJson.Serialize(escapedIdConfiguration));
+Check(escapedIdRoundTrip.Quotas.Single().ProfessionId == "research \"north\" / Δ",
+    "JSON serialization safely round-trips quoted and Unicode profession ids");
 
 var mutableSource = new List<ProfessionQuota>
 {
