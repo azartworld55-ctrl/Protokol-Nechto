@@ -13,7 +13,7 @@ namespace AzartWorld.PrisonColony
         public List<PrisonContract> Contracts = new List<PrisonContract>();
         public int SchemaVersion = 1;
 
-        public PrisonColonyGameComponent(Game game) : base()
+        public PrisonColonyGameComponent(Game game) : base(game)
         {
         }
 
