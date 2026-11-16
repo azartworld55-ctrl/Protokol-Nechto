@@ -14,7 +14,7 @@ namespace AzartWorld.PrisonColony
 
         public override Vector2 InitialSize
         {
-            get { return new Vector2(620f, 520f); }
+            get { return new Vector2(720f, 720f); }
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -81,8 +81,76 @@ namespace AzartWorld.PrisonColony
             }
 
             y += 8f;
+            Widgets.Label(new Rect(0f, y, inRect.width, 26f), "ИНФРАСТРУКТУРА И БЕЗОПАСНОСТЬ");
+            y += 28f;
+
+            PrisonFacilityState facility = state.Facility;
+            if (facility == null)
+            {
+                Widgets.Label(new Rect(0f, y, inRect.width, 24f), "Состояние учреждения не загружено.");
+                return;
+            }
+
             Widgets.Label(new Rect(0f, y, inRect.width, 24f),
-                "ПРИМЕЧАНИЕ: ручной приём пешек — временный тестовый путь, не посадка шаттла.");
+                "Безопасность: " + facility.GetSecurityRating() + "/100 | Напряжённость: " +
+                facility.Tension + "/100 | Питание: " + facility.CachedPowerDemand + "/" +
+                facility.CachedPowerCapacity + " | Расходы: " + facility.GetDailyUpkeep() + "/день");
+            y += 26f;
+            Widgets.Label(new Rect(0f, y, inRect.width, 22f),
+                "Режим: " + SecurityModeLabel(facility.CurrentSecurityMode) +
+                " | Камеры: " + facility.CountModules(FacilityModuleType.SecurityCamera) +
+                " | Охрана: " + facility.CountStaff(PrisonStaffRole.Guard));
+            y += 26f;
+
+            if (Widgets.ButtonText(new Rect(0f, y, 210f, 30f), "Сменить режим безопасности"))
+                facility.SetSecurityMode((PrisonSecurityMode)(((int)facility.CurrentSecurityMode + 1) % 4));
+            y += 36f;
+
+            Widgets.Label(new Rect(0f, y, inRect.width, 22f), "Установить модуль (за внутренние кредиты)");
+            y += 24f;
+            if (Widgets.ButtonText(new Rect(0f, y, 132f, 30f), "Генератор 220"))
+                state.InstallFacilityModule(FacilityModuleType.Generator);
+            if (Widgets.ButtonText(new Rect(136f, y, 132f, 30f), "Блок камер 180"))
+                state.InstallFacilityModule(FacilityModuleType.CellBlock);
+            if (Widgets.ButtonText(new Rect(272f, y, 132f, 30f), "Камера 90"))
+                state.InstallFacilityModule(FacilityModuleType.SecurityCamera);
+            if (Widgets.ButtonText(new Rect(408f, y, 132f, 30f), "Консоль 160"))
+                state.InstallFacilityModule(FacilityModuleType.ControlConsole);
+            if (Widgets.ButtonText(new Rect(544f, y, 132f, 30f), "Дверь 120"))
+                state.InstallFacilityModule(FacilityModuleType.SecureDoor);
+            y += 36f;
+            if (Widgets.ButtonText(new Rect(0f, y, 132f, 30f), "Сигнализация 130"))
+                state.InstallFacilityModule(FacilityModuleType.AlarmSystem);
+            if (Widgets.ButtonText(new Rect(136f, y, 132f, 30f), "Медблок 170"))
+                state.InstallFacilityModule(FacilityModuleType.MedicalRoom);
+            if (Widgets.ButtonText(new Rect(272f, y, 132f, 30f), "Кухня 150"))
+                state.InstallFacilityModule(FacilityModuleType.Kitchen);
+            if (Widgets.ButtonText(new Rect(408f, y, 132f, 30f), "Санузел 140"))
+                state.InstallFacilityModule(FacilityModuleType.Sanitation);
+            if (Widgets.ButtonText(new Rect(544f, y, 132f, 30f), "Досуг 110"))
+                state.InstallFacilityModule(FacilityModuleType.RecreationRoom);
+            y += 38f;
+
+            Widgets.Label(new Rect(0f, y, inRect.width, 22f),
+                "Назначить выбранных пешек персоналом (пешки-заключённые исключены)");
+            y += 24f;
+            if (Widgets.ButtonText(new Rect(0f, y, 132f, 30f), "Охрана"))
+                AssignSelectedStaff(state, PrisonStaffRole.Guard);
+            if (Widgets.ButtonText(new Rect(136f, y, 132f, 30f), "Управляющий"))
+                AssignSelectedStaff(state, PrisonStaffRole.Warden);
+            if (Widgets.ButtonText(new Rect(272f, y, 132f, 30f), "Медик"))
+                AssignSelectedStaff(state, PrisonStaffRole.Medic);
+            if (Widgets.ButtonText(new Rect(408f, y, 132f, 30f), "Повар"))
+                AssignSelectedStaff(state, PrisonStaffRole.Cook);
+            if (Widgets.ButtonText(new Rect(544f, y, 132f, 30f), "Техник"))
+                AssignSelectedStaff(state, PrisonStaffRole.Technician);
+            y += 36f;
+
+            Widgets.Label(new Rect(0f, y, inRect.width, 24f),
+                "Модули пока абстрактны: они влияют на питание, расходы и показатели, но не создают здания на карте.");
+            y += 24f;
+            Widgets.Label(new Rect(0f, y, inRect.width, 24f),
+                "Ручной приём пешек — тестовый путь, не прибытие шаттла. Отправление ещё не подключено.");
         }
 
         private static void RegisterSelectedPawns(PrisonColonyGameComponent state, PrisonContract contract)
@@ -93,6 +161,23 @@ namespace AzartWorld.PrisonColony
                 if (pawn.Faction == Faction.OfPlayer) continue;
                 if (state.RegisterArrival(contract.Id, pawn))
                     pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
+            }
+        }
+
+        private static void AssignSelectedStaff(PrisonColonyGameComponent state, PrisonStaffRole role)
+        {
+            foreach (Pawn pawn in Find.Selector.SelectedPawns)
+                state.AssignStaff(pawn, role);
+        }
+
+        private static string SecurityModeLabel(PrisonSecurityMode mode)
+        {
+            switch (mode)
+            {
+                case PrisonSecurityMode.IncreasedAttention: return "Повышенное внимание";
+                case PrisonSecurityMode.Quarantine: return "Карантин";
+                case PrisonSecurityMode.Emergency: return "Чрезвычайный";
+                default: return "Обычный";
             }
         }
 
