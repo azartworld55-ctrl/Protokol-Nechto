@@ -1,94 +1,153 @@
 # Runtime Probe — Ports1de Beta 14
 
-## Purpose
+## Почему тест разделён на две стадии
 
-This is the first deliberately small runtime test for ПРОТОКОЛ: НЕЧТО. It is not a gameplay feature and it does not change RimWorld simulation.
+Нельзя проверять загрузку DLL и Harmony одним модом: если загрузчик не поддерживает DLL, Harmony-тест не запустится и причина ошибки останется неясной.
 
-The probe checks four separate things:
+Поэтому используем две независимые проверки:
 
-1. Ports1de discovers the mod and reads its metadata.
-2. RimWorld constructs the mod's `Verse.Mod` entry point.
-3. The mod can resolve the Harmony assembly supplied by the installed Harmony dependency.
-4. Harmony can register and execute a postfix against a harmless sentinel method inside the mod's own assembly.
+- **A1 — Ports1deProbe:** отдельный минимальный мод без Harmony. Проверяет только обнаружение DLL, создание экземпляра Verse.Mod и фактический runtime.
+- **A2 — Harmony self-patch:** основной адаптер Protocol.RimWorld. Запускается только после успешного A1; проверяет, что Harmony загружается и выполняет postfix на безопасном тестовом методе самого мода.
 
-The fourth check is a **Harmony self-patch**. It proves that the Harmony patch pipeline can execute in the loaded mod assembly. It does **not** prove that Ports1de permits patching arbitrary methods in `Assembly-CSharp.dll`. A separate, narrowly scoped game-method patch test remains a later gate.
+A2 не доказывает, что Ports1de разрешает патчить методы RimWorld. Для этого позже потребуется отдельный no-op postfix на одном точно проверенном игровом методе.
 
-## Files involved
+## A1 — изолированный DLL loader probe
 
-- `src/Protocol.RimWorld/ProtocolMod.cs` — Verse entry point, version diagnostics and probe result.
-- `src/Protocol.RimWorld/ProtocolRuntimeProbe.cs` — sentinel method and postfix.
-- `src/Protocol.RimWorld/Protocol.RimWorld.csproj` — references the game and Harmony DLLs supplied by the local test installation.
+Исходники:
 
-No copy of RimWorld, UnityStubs or Harmony is committed to this repository.
+- `tools/Ports1deProbe/Ports1deProbe.csproj`
+- `tools/Ports1deProbe/ProbeMod.cs`
+- `tools/Ports1deProbe/About/About.xml`
+- инструкция: `tools/Ports1deProbe/README.md`
 
-## Build prerequisites
+Пробник:
+- не ссылается на Harmony;
+- не содержит Harmony-патчей;
+- не меняет пешек, карту, сохранения или игровой процесс;
+- при вызове конструктора Verse.Mod пишет маркер `[Ports1deProbe] ENTRYPOINT_REACHED`;
+- выводит полные имена сборок, runtime, target framework и архитектуру процесса/ОС.
 
-Use the exact Ports1de Beta 14 game assemblies extracted from the APK already recorded in the private technical repository, plus the `0Harmony.dll` that the target installation actually supplies for the Harmony dependency. Do not substitute DLLs from a different RimWorld version.
+### Сборка A1
 
-The adapter project expects:
-
-- `RIMWORLD_ASSEMBLY_DIR` — directory containing `Assembly-CSharp.dll` and, where present, `UnityStubs.dll`.
-- `RIMWORLD_HARMONY_DLL` — full path to the target `0Harmony.dll`.
-
-From the repository root, build with:
-
-```bash
-dotnet build src/Protocol.RimWorld/Protocol.RimWorld.csproj --configuration Release
-```
-
-The build output is configured for `1.7/Assemblies/`. The mod package must contain the existing `About/About.xml` and the adapter output, including `Protocol.RimWorld.dll` and its project-reference output `Protocol.Core.dll`. Do not copy `Assembly-CSharp.dll`, `UnityStubs.dll` or `0Harmony.dll` into the mod package.
-
-Example environment-variable setup (adapt the paths to the local test environment):
-
-PowerShell:
-
-```powershell
-$env:RIMWORLD_ASSEMBLY_DIR = "C:\path\to\Ports1deBeta14\Managed"
-$env:RIMWORLD_HARMONY_DLL = "C:\path\to\Harmony\0Harmony.dll"
-dotnet build src/Protocol.RimWorld/Protocol.RimWorld.csproj --configuration Release
-```
+Нужен каталог managed-сборок той самой игры, которую запускает пользователь. В нём должен находиться `Assembly-CSharp.dll`.
 
 Bash:
 
 ```bash
-export RIMWORLD_ASSEMBLY_DIR="/path/to/Ports1deBeta14/Managed"
-export RIMWORLD_HARMONY_DLL="/path/to/Harmony/0Harmony.dll"
+export RIMWORLD_ASSEMBLY_DIR="/path/to/target/Managed"
+dotnet build tools/Ports1deProbe/Ports1deProbe.csproj --configuration Release
+```
+
+PowerShell:
+
+```powershell
+$env:RIMWORLD_ASSEMBLY_DIR = "C:\path\to\target\Managed"
+dotnet build tools/Ports1deProbe/Ports1deProbe.csproj --configuration Release
+```
+
+Ожидаемый файл: `tools/Ports1deProbe/bin/Release/Ports1deProbe.dll`.
+
+Упаковать его в ZIP с такой структурой:
+
+```text
+Ports1deProbe/
+  About/
+    About.xml
+  Assemblies/
+    Ports1deProbe.dll
+```
+
+В архив не добавлять `Assembly-CSharp.dll`, Harmony или другие игровые DLL.
+
+### Проверка A1 на устройстве
+
+1. Сохранить текущий список модов и важные сохранения.
+2. Импортировать ZIP штатным импортёром Ports1de.
+3. Включить только Ports1de Runtime Probe; не добавлять Harmony как зависимость пробника.
+4. Перезапустить игру.
+5. Проверить лог на `[Ports1deProbe] ENTRYPOINT_REACHED`.
+6. Сохранить строки о Runtime, Target framework, Verse assembly и архитектуре.
+7. Если маркера нет — сохранить первую ошибку загрузчика и stack trace.
+
+Сам факт появления мода в списке подтверждает только чтение About.xml, но не загрузку DLL.
+
+### Критерий A1
+
+A1 пройден только если маркер ENTRYPOINT_REACHED реально появился в логе Ports1de на Android. Успешная локальная сборка или появление в менеджере модов не засчитываются.
+
+## A2 — Harmony self-patch в Protocol.RimWorld
+
+A2 выполнять только после PASS по A1 и уточнения фактических версий игры/runtime.
+
+Исходники:
+
+- `src/Protocol.RimWorld/Protocol.RimWorld.csproj`
+- `src/Protocol.RimWorld/ProtocolMod.cs`
+- `src/Protocol.RimWorld/ProtocolRuntimeProbe.cs`
+
+Адаптер:
+- ссылается на `Assembly-CSharp.dll`;
+- ссылается на Harmony DLL из установленной Harmony-зависимости;
+- не включает игровые DLL или Harmony в пакет;
+- регистрирует postfix на собственном безвредном sentinel-методе;
+- проверяет, что результат изменился с `protocol-probe-original` на `protocol-probe-patched`.
+
+Этот тест проверяет загрузку Harmony, регистрацию патча и исполнение postfix в сборке мода. Он **не** подтверждает возможность патчить методы Assembly-CSharp.
+
+### Сборка A2
+
+Нужны:
+- `RIMWORLD_ASSEMBLY_DIR` — каталог с `Assembly-CSharp.dll` и, если есть, `UnityStubs.dll`;
+- `RIMWORLD_HARMONY_DLL` — путь к Harmony DLL, соответствующей установленной игре.
+
+Bash:
+
+```bash
+export RIMWORLD_ASSEMBLY_DIR="/path/to/target/Managed"
+export RIMWORLD_HARMONY_DLL="/path/to/target/Harmony/0Harmony.dll"
 dotnet build src/Protocol.RimWorld/Protocol.RimWorld.csproj --configuration Release
 ```
 
-## Device test
+PowerShell:
 
-1. Keep a backup of the current Ports1de save and mod configuration.
-2. Make sure the Harmony dependency is installed and enabled before ПРОТОКОЛ: НЕЧТО.
-3. Import the mod folder containing `About/` and `1.7/Assemblies/` using the mod-import route provided by the installed Ports1de build.
-4. Enable ПРОТОКОЛ: НЕЧТО and start the game.
-5. Check the game log for both expected messages below.
-6. If startup fails, disable the probe mod, restore the previous mod configuration and capture the first relevant exception plus the surrounding stack trace.
+```powershell
+$env:RIMWORLD_ASSEMBLY_DIR = "C:\path\to\target\Managed"
+$env:RIMWORLD_HARMONY_DLL = "C:\path\to\target\Harmony\0Harmony.dll"
+dotnet build src/Protocol.RimWorld/Protocol.RimWorld.csproj --configuration Release
+```
 
-Do not add gameplay patches or other mods during this first test. The goal is to isolate loader and Harmony behaviour.
+Выход адаптера настроен в `1.7/Assemblies/`. В пакет мода включить `About/` и собранные DLL проекта. Не копировать туда `Assembly-CSharp.dll`, `UnityStubs.dll` или `0Harmony.dll`.
 
-## Expected successful log messages
-
-The exact version numbers depend on the installed files, but the messages should include:
+### Ожидаемые сообщения A2
 
 ```text
 [ПРОТОКОЛ: НЕЧТО] Harmony self-patch probe passed: the postfix executed and changed the sentinel result.
 [ПРОТОКОЛ: НЕЧТО] Adapter constructor reached. ... Harmony self-patch probe: PASS.
 ```
 
-The first message means the postfix changed the sentinel return value from `protocol-probe-original` to `protocol-probe-patched`. The second confirms that the Verse entry point completed its diagnostic path.
+Если появляется FAIL или исключение, сохранить весь текст ошибки и stack trace.
 
-## How to record the result
+## Важное расхождение версий
 
-- **PASS — loader:** Ports1de lists and enables the mod.
-- **PASS — Verse entry:** the adapter constructor diagnostic appears.
-- **PASS — Harmony self-patch:** the postfix diagnostic appears and reports PASS.
-- **FAIL — build:** compiler output, exact target DLL versions and command used.
-- **FAIL — loader:** first load exception and stack trace.
-- **FAIL — Harmony:** whether the adapter constructor ran, plus the complete probe error.
+В заметках по скриншотам устройства от 16.11.2026 записаны RimWorld `1.7.4990 (64-bit)`, Ports1de `0.0.20`, UI `0.0.20` и Harmony `3.0.1.0`. Статический отчёт по APK, загруженному в технический Release, содержит иные значения AssemblyVersion для некоторых сборок. Нельзя считать их одной и той же установкой без повторной сверки. Собирать нужно против DLL фактической установки, которую пользователь тестирует.
 
-Do not mark the runtime gate complete from a successful local compile alone. The gate is complete only after the successful messages are observed in Ports1de on the target Android device.
+## Текущий статус
 
-## Next gate after this probe
+- Код A1 существует; сборка и запуск на устройстве не подтверждены.
+- Код A2 self-patch добавлен в основной адаптер; сборка и запуск на устройстве не подтверждены.
+- Точный runtime и framework для модовых DLL ещё не доказаны.
+- Реальный Harmony patch на методе RimWorld ещё не проверен.
+- Никакие игровые механики не должны подключаться до прохождения A1 и A2.
 
-After the self-patch passes, add one separate no-op postfix against a carefully selected, harmless RimWorld method whose exact declaring type and signature have been verified against the same Beta 14 `Assembly-CSharp.dll`. Confirm that it runs once at the intended point, does not alter the game's result, and does not spam logs. Only then begin live Pawn/Map integration.
+## Как фиксировать результат
+
+Для каждого этапа записать:
+- PASS/FAIL;
+- Ports1de build и RimWorld version с экрана устройства;
+- Verse/Assembly-CSharp assembly identity;
+- runtime и target framework из лога A1;
+- Harmony assembly identity (для A2);
+- первую ошибку и полный stack trace при FAIL;
+- commit SHA исходников, которые были собраны.
+
+Ворота A считаются пройденными только после фактических успешных тестов на устройстве, а не по наличию исходников.
