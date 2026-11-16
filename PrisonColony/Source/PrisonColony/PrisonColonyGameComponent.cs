@@ -19,7 +19,7 @@ namespace AzartWorld.PrisonColony
         public int NextContractId = 1;
         public int LastProcessedDay = -1;
 
-        public PrisonColonyGameComponent(Game game) : base()
+        public PrisonColonyGameComponent() : base()
         {
         }
 
