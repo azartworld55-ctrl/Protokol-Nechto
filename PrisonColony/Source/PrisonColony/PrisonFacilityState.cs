@@ -195,7 +195,22 @@ namespace AzartWorld.PrisonColony
             int elapsed = currentDay - LastMaintenanceDay;
             for (int day = 0; day < elapsed; day++)
             {
-                credits -= GetDailyUpkeep();
+                int upkeep = GetDailyUpkeep();
+                if (credits >= upkeep)
+                {
+                    credits -= upkeep;
+                }
+                else
+                {
+                    // Unpaid maintenance degrades equipment instead of silently
+                    // allowing a debt-funded facility to run forever.
+                    foreach (FacilityModuleRecord module in Modules)
+                    {
+                        if (module == null || module.Integrity <= 0) continue;
+                        module.Integrity -= 5;
+                        if (module.Integrity < 0) module.Integrity = 0;
+                    }
+                }
                 RecalculatePower();
 
                 if (GetSecurityRating() < 25 && prisonerCount > 0)
