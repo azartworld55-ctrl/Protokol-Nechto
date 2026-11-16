@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>Ports1deProbe</AssemblyName>
+    <RootNamespace>Ports1deProbe</RootNamespace>
+    <OutputPath>bin/$(Configuration)/</OutputPath>
+    <GameManagedDir Condition="'$(GameManagedDir)' == ''">$(RIMWORLD_ASSEMBLY_DIR)</GameManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(GameManagedDir)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateGameReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(TargetFramework)' != 'net10.0'" Text="This probe currently targets .NET 10 as an unverified test hypothesis." />
+    <Error Condition="'$(GameManagedDir)' == '' or !Exists('$(GameManagedDir)/Assembly-CSharp.dll')" Text="Set RIMWORLD_ASSEMBLY_DIR to the directory containing the target game's Assembly-CSharp.dll." />
+  </Target>
+</Project>
