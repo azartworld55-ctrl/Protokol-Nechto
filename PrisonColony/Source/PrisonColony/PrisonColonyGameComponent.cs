@@ -13,6 +13,7 @@ namespace AzartWorld.PrisonColony
 
         public List<PrisonerRecord> Prisoners = new List<PrisonerRecord>();
         public List<PrisonContract> Contracts = new List<PrisonContract>();
+        public PrisonFacilityState Facility = new PrisonFacilityState();
         public int SchemaVersion = 2;
         public int Credits = 250;
         public int NextContractId = 1;
@@ -31,11 +32,13 @@ namespace AzartWorld.PrisonColony
             Scribe_Values.Look(ref LastProcessedDay, "pc_lastProcessedDay", -1);
             Scribe_Collections.Look(ref Prisoners, "pc_prisoners", LookMode.Deep);
             Scribe_Collections.Look(ref Contracts, "pc_contracts", LookMode.Deep);
+            Scribe_Deep.Look(ref Facility, "pc_facility");
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (Prisoners == null) Prisoners = new List<PrisonerRecord>();
                 if (Contracts == null) Contracts = new List<PrisonContract>();
+                if (Facility == null) Facility = new PrisonFacilityState();
                 if (NextContractId < 1) NextContractId = 1;
             }
         }
@@ -192,6 +195,22 @@ namespace AzartWorld.PrisonColony
                 if (contract.DaysElapsed >= contract.DurationDays)
                     contract.CurrentStatus = PrisonContractStatus.Departing;
             }
+
+            if (Facility == null) Facility = new PrisonFacilityState();
+            Facility.ProcessDaily(ref Credits, currentDay, Prisoners.Count);
+        }
+
+        public bool InstallFacilityModule(FacilityModuleType type)
+        {
+            if (Facility == null) Facility = new PrisonFacilityState();
+            return Facility.InstallModule(type, ref Credits);
+        }
+
+        public bool AssignStaff(Pawn pawn, PrisonStaffRole role)
+        {
+            if (FindPrisoner(pawn) != null) return false;
+            if (Facility == null) Facility = new PrisonFacilityState();
+            return Facility.AssignStaff(pawn, role);
         }
 
         private int CountPrisoners(int contractId)
