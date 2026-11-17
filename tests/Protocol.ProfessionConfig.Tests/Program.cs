@@ -485,9 +485,26 @@ Expect<ArgumentException>(
         static (resident, professionId) => resident with { ProfessionId = professionId }),
     "roster composer rejects a collection whose Count is not twelve even if it enumerates twelve");
 
+var valueResidents = Enumerable.Range(1, 12)
+    .Select(index => new ResidentValue(index, $"Resident {index}", "unassigned"))
+    .ToArray();
+var brokenCopyToCollection = new InconsistentCopyToCollection<ResidentValue>(
+    valueResidents,
+    copiedCount: 11);
+var valueRoster = composer.Compose(
+    brokenCopyToCollection,
+    configuration,
+    seed: 417,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+Check(valueRoster.Count == 12 &&
+      valueRoster.Select(resident => resident.Id).SequenceEqual(Enumerable.Range(1, 12)),
+    "composer enumerates the actual source instead of trusting a broken ICollection.CopyTo implementation");
+
 Console.WriteLine("All profession quota checks passed, including roster composition and collection-boundary checks.");
 
 sealed record ResidentDraft(Guid Id, string Name, string ProfessionId);
+
+readonly record struct ResidentValue(int Id, string Name, string ProfessionId);
 
 sealed class InconsistentReadOnlyList<T>(
     IReadOnlyList<T> items,
@@ -496,6 +513,41 @@ sealed class InconsistentReadOnlyList<T>(
     public int Count => reportedCount;
 
     public T this[int index] => items[index];
+
+    public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
+
+sealed class InconsistentCopyToCollection<T>(
+    IReadOnlyList<T> items,
+    int copiedCount) : IReadOnlyList<T>, ICollection<T>
+{
+    public int Count => items.Count;
+
+    public bool IsReadOnly => true;
+
+    public T this[int index] => items[index];
+
+    public bool Contains(T item) => items.Contains(item);
+
+    public void CopyTo(T[] array, int arrayIndex)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        if (arrayIndex < 0 || arrayIndex > array.Length ||
+            array.Length - arrayIndex < Count)
+            throw new ArgumentException("Destination array is too small.", nameof(array));
+
+        for (var index = 0; index < Math.Min(copiedCount, items.Count); index++)
+            array[arrayIndex + index] = items[index];
+    }
+
+    public void Add(T item) => throw new NotSupportedException();
+
+    public void Clear() => throw new NotSupportedException();
+
+    public bool Remove(T item) => throw new NotSupportedException();
 
     public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
 
