@@ -96,6 +96,26 @@ Check(maximumEntryConfiguration.Quotas.Count == 12 &&
       maximumEntryAllocation.Distinct(StringComparer.Ordinal).Count() == 12,
     "twelve distinct one-resident quotas are supported without losing assignments");
 
+var brokenQuotaCopyCollection = new InconsistentCopyToCollection<ProfessionQuota>(
+    twelveDistinctQuotas,
+    copiedCount: 11);
+var copiedQuotaConfiguration = new ProfessionQuotaConfiguration(brokenQuotaCopyCollection);
+Check(copiedQuotaConfiguration.Quotas.SequenceEqual(twelveDistinctQuotas),
+    "configuration snapshots the enumerator instead of trusting ICollection.CopyTo");
+
+var excessiveQuotaEnumerationCount = 0;
+var excessiveQuotaSequence = Enumerable.Range(1, 100)
+    .Select(index =>
+    {
+        excessiveQuotaEnumerationCount++;
+        return new ProfessionQuota($"excess-{index}", 1);
+    });
+Expect<ArgumentException>(
+    () => new ProfessionQuotaConfiguration(excessiveQuotaSequence),
+    "configuration rejects more than twelve positive quota entries");
+Check(excessiveQuotaEnumerationCount == 13,
+    "configuration stops enumerating immediately after the thirteenth quota");
+
 var escapedIdConfiguration = new ProfessionQuotaConfiguration(new[]
 {
     new ProfessionQuota("research \"north\" / Δ", 12)
@@ -199,6 +219,16 @@ Expect<ArgumentException>(
 Expect<ArgumentException>(
     () => ProfessionQuotaJson.Deserialize("""{"schemaVersion":1,"quotas":[]}"""),
     "JSON with an empty quota list is rejected by domain validation");
+
+var excessiveQuotaJson = JsonSerializer.Serialize(new
+{
+    schemaVersion = 1,
+    quotas = Enumerable.Range(1, 13)
+        .Select(index => new { professionId = $"profession-{index}", count = 1 })
+});
+Expect<FormatException>(
+    () => ProfessionQuotaJson.Deserialize(excessiveQuotaJson),
+    "JSON with more than twelve quota entries is rejected before building the quota list");
 
 Expect<NotSupportedException>(
     () => ProfessionQuotaJson.Deserialize("""{"schemaVersion":2,"quotas":[]}"""),
