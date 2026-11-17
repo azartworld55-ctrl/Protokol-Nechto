@@ -35,9 +35,15 @@ public static class ProfessionQuotaJson
         if (quotasElement.ValueKind != JsonValueKind.Array)
             throw new FormatException("quotas must be an array.");
 
-        var quotas = new List<ProfessionQuota>();
+        var quotas = new List<ProfessionQuota>(ProfessionQuotaConfiguration.RequiredResidentCount);
         foreach (var quotaElement in quotasElement.EnumerateArray())
         {
+            if (quotas.Count == ProfessionQuotaConfiguration.RequiredResidentCount)
+            {
+                throw new FormatException(
+                    $"quotas cannot contain more than {ProfessionQuotaConfiguration.RequiredResidentCount} entries.");
+            }
+
             EnsureObject(quotaElement, "Quota entry");
             EnsureUniqueAndAllowedProperties(quotaElement, "professionId", "count");
 
