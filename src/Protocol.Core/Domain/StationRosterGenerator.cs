@@ -67,11 +67,15 @@ public sealed class StationRosterGenerator
         if (playerIndex >= parasiteIndex)
             playerIndex++;
 
-        var residents = _professionComposer.Compose(
+        var assignedDrafts = _professionComposer.Compose(
             drafts,
             professionConfiguration,
             seed,
-            static (draft, professionId) => draft.ToResident(professionId));
+            static (draft, professionId) => draft with { ProfessionId = professionId });
+
+        var residents = assignedDrafts
+            .Select(draft => draft.ToResident())
+            .ToArray();
 
         return new StationRoster(
             residents,
@@ -85,9 +89,16 @@ public sealed class StationRosterGenerator
         int Age,
         ResidentPersonality Personality,
         IReadOnlyList<ResidentHabit> Habits,
-        IReadOnlyList<ResidentTrait> Traits)
+        IReadOnlyList<ResidentTrait> Traits,
+        string? ProfessionId = null)
     {
-        public Resident ToResident(string professionId) =>
-            new(Id, Name, Age, professionId, Personality, Habits, Traits);
+        public Resident ToResident()
+        {
+            var professionId = ProfessionId;
+            if (string.IsNullOrWhiteSpace(professionId))
+                throw new InvalidOperationException("Profession assignment was not applied to a resident draft.");
+
+            return new Resident(Id, Name, Age, professionId, Personality, Habits, Traits);
+        }
     }
 }
