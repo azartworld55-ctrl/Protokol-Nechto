@@ -1,4 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Protocol.Core.Domain;
 using Protocol.Determinism;
 using Protocol.ProfessionConfig;
@@ -39,6 +42,13 @@ for (var index = 0; index < 1000; index++)
 {
     var value = boundedRandom.NextInt(7);
     Check(value is >= 0 and < 7, "bounded random values remain inside the requested interval");
+}
+
+var doubleRandom = new StableRandom(long.MaxValue);
+for (var index = 0; index < 1000; index++)
+{
+    var value = doubleRandom.NextDouble();
+    Check(value is >= 0.0 and < 1.0, "random doubles remain inside the half-open unit interval");
 }
 
 Expect<ArgumentOutOfRangeException>(() => new StableRandom(1).NextInt(0), "zero-sized random range is rejected");
@@ -97,24 +107,33 @@ static string Snapshot(StationRoster value)
     var residents = value.Residents.Select(resident =>
         string.Join(
             "|",
-            resident.Id.ToString("N"),
-            resident.Name,
-            resident.Age,
-            resident.ProfessionId,
-            resident.Personality.Curiosity,
-            resident.Personality.Sociability,
-            resident.Personality.Caution,
-            resident.Personality.Empathy,
-            resident.Personality.Discipline,
-            string.Join(",", resident.Habits),
-            string.Join(",", resident.Traits)));
+            new[]
+            {
+                resident.Id.ToString("N"),
+                resident.Name,
+                resident.Age.ToString(CultureInfo.InvariantCulture),
+                resident.ProfessionId,
+                resident.Personality.Curiosity.ToString(CultureInfo.InvariantCulture),
+                resident.Personality.Sociability.ToString(CultureInfo.InvariantCulture),
+                resident.Personality.Caution.ToString(CultureInfo.InvariantCulture),
+                resident.Personality.Empathy.ToString(CultureInfo.InvariantCulture),
+                resident.Personality.Discipline.ToString(CultureInfo.InvariantCulture),
+                string.Join(",", resident.Habits),
+                string.Join(",", resident.Traits)
+            }));
 
     return string.Join("\n", residents) +
            $"\nplayer={value.PlayerResidentId:N}\nparasite={value.ParasiteResidentId:N}";
 }
 
-Check(Snapshot(roster) == Snapshot(repeatedRoster), "the complete roster is reproducible for a fixed seed and configuration");
-Check(Snapshot(roster) != Snapshot(differentSeedRoster), "a different seed changes the generated roster");
+var snapshot = Snapshot(roster);
+var snapshotHash = Convert.ToHexString(
+    SHA256.HashData(Encoding.UTF8.GetBytes(snapshot))).ToLowerInvariant();
+
+Check(snapshot == Snapshot(repeatedRoster), "the complete roster is reproducible for a fixed seed and configuration");
+Check(snapshotHash == "ceb0c2ec3677af20bef6a671758021887f94d9425d8417ac8d242d26fc4c5715",
+    "the complete roster matches the cross-runtime golden snapshot for the fixed seed");
+Check(snapshot != Snapshot(differentSeedRoster), "a different seed changes the generated roster");
 
 var readOnlyResidents = roster.Residents;
 Check(readOnlyResidents is ReadOnlyCollection<Resident>, "roster residents are exposed through a read-only wrapper");
