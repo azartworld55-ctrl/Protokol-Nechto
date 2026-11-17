@@ -12,12 +12,28 @@ public sealed class ProfessionQuotaConfiguration
     {
         ArgumentNullException.ThrowIfNull(quotas);
 
-        var snapshot = quotas.ToArray();
-        if (snapshot.Length == 0)
-            throw new ArgumentException("At least one profession quota is required.", nameof(quotas));
+        // Every quota must be positive and the total must be twelve, so a valid
+        // configuration can contain at most twelve entries. Enumerate into a
+        // bounded snapshot instead of trusting arbitrary IEnumerable/CopyTo
+        // implementations or materializing an unbounded sequence.
+        var snapshot = new List<ProfessionQuota>(RequiredResidentCount);
+        foreach (var quota in quotas)
+        {
+            if (snapshot.Count == RequiredResidentCount)
+            {
+                throw new ArgumentException(
+                    $"A configuration cannot contain more than {RequiredResidentCount} profession quotas.",
+                    nameof(quotas));
+            }
 
-        if (snapshot.Any(quota => quota is null))
-            throw new ArgumentException("Profession quotas cannot contain null entries.", nameof(quotas));
+            if (quota is null)
+                throw new ArgumentException("Profession quotas cannot contain null entries.", nameof(quotas));
+
+            snapshot.Add(quota);
+        }
+
+        if (snapshot.Count == 0)
+            throw new ArgumentException("At least one profession quota is required.", nameof(quotas));
 
         var duplicateIds = snapshot
             .GroupBy(quota => quota.ProfessionId, StringComparer.OrdinalIgnoreCase)
@@ -36,7 +52,7 @@ public sealed class ProfessionQuotaConfiguration
                 $"Profession quotas must sum to exactly {RequiredResidentCount}; configured total is {total}.",
                 nameof(quotas));
 
-        Quotas = Array.AsReadOnly(snapshot);
+        Quotas = snapshot.AsReadOnly();
     }
 
     public IReadOnlyList<ProfessionQuota> Quotas { get; }

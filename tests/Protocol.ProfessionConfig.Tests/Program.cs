@@ -96,6 +96,26 @@ Check(maximumEntryConfiguration.Quotas.Count == 12 &&
       maximumEntryAllocation.Distinct(StringComparer.Ordinal).Count() == 12,
     "twelve distinct one-resident quotas are supported without losing assignments");
 
+var brokenQuotaCopyCollection = new InconsistentCopyToCollection<ProfessionQuota>(
+    twelveDistinctQuotas,
+    copiedCount: 11);
+var copiedQuotaConfiguration = new ProfessionQuotaConfiguration(brokenQuotaCopyCollection);
+Check(copiedQuotaConfiguration.Quotas.SequenceEqual(twelveDistinctQuotas),
+    "configuration snapshots the enumerator instead of trusting ICollection.CopyTo");
+
+var excessiveQuotaEnumerationCount = 0;
+var excessiveQuotaSequence = Enumerable.Range(1, 100)
+    .Select(index =>
+    {
+        excessiveQuotaEnumerationCount++;
+        return new ProfessionQuota($"excess-{index}", 1);
+    });
+Expect<ArgumentException>(
+    () => new ProfessionQuotaConfiguration(excessiveQuotaSequence),
+    "configuration rejects more than twelve positive quota entries");
+Check(excessiveQuotaEnumerationCount == 13,
+    "configuration stops enumerating immediately after the thirteenth quota");
+
 var escapedIdConfiguration = new ProfessionQuotaConfiguration(new[]
 {
     new ProfessionQuota("research \"north\" / Δ", 12)
@@ -199,6 +219,16 @@ Expect<ArgumentException>(
 Expect<ArgumentException>(
     () => ProfessionQuotaJson.Deserialize("""{"schemaVersion":1,"quotas":[]}"""),
     "JSON with an empty quota list is rejected by domain validation");
+
+var excessiveQuotaJson = JsonSerializer.Serialize(new
+{
+    schemaVersion = 1,
+    quotas = Enumerable.Range(1, 13)
+        .Select(index => new { professionId = $"profession-{index}", count = 1 })
+});
+Expect<FormatException>(
+    () => ProfessionQuotaJson.Deserialize(excessiveQuotaJson),
+    "JSON with more than twelve quota entries is rejected before building the quota list");
 
 Expect<NotSupportedException>(
     () => ProfessionQuotaJson.Deserialize("""{"schemaVersion":2,"quotas":[]}"""),
@@ -306,4 +336,251 @@ for (var seed = -256; seed <= 256; seed++)
     }
 }
 
-Console.WriteLine("All profession quota checks passed.");
+var composer = new ProfessionRosterComposer(allocator);
+var unassignedResidents = Enumerable.Range(1, 12)
+    .Select(index => new ResidentDraft(
+        Guid.Parse($"00000000-0000-0000-0000-{index:000000000000}"),
+        $"Resident {index}",
+        "unassigned"))
+    .ToArray();
+
+var composedRoster = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 417,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+
+Check(composedRoster.Count == 12,
+    "roster composer returns exactly twelve residents");
+
+var composedCounts = composedRoster
+    .GroupBy(resident => resident.ProfessionId, StringComparer.OrdinalIgnoreCase)
+    .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+foreach (var quota in configuration.Quotas)
+{
+    Check(composedCounts.TryGetValue(quota.ProfessionId, out var actual) &&
+          actual == quota.Count,
+        $"composed roster exactly matches the quota for {quota.ProfessionId}");
+}
+
+Check(composedRoster.Select(resident => resident.Id)
+        .SequenceEqual(unassignedResidents.Select(resident => resident.Id)) &&
+      composedRoster.Select(resident => resident.Name)
+        .SequenceEqual(unassignedResidents.Select(resident => resident.Name)),
+    "roster composition preserves resident identity and input order");
+
+Check(unassignedResidents.All(resident => resident.ProfessionId == "unassigned"),
+    "roster composition does not mutate the caller's resident objects");
+
+var repeatedRoster = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 417,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+Check(composedRoster.SequenceEqual(repeatedRoster),
+    "the same seed reproduces the complete composed roster");
+
+var alternateRoster = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 418,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+Check(!composedRoster.Select(resident => resident.ProfessionId)
+        .SequenceEqual(alternateRoster.Select(resident => resident.ProfessionId)),
+    "a different seed changes profession placement without changing quotas");
+
+var composedView = (IList<ResidentDraft>)composedRoster;
+Check(composedView.IsReadOnly,
+    "composed roster is exposed as a read-only collection");
+Expect<NotSupportedException>(
+    () => composedView[0] = unassignedResidents[0],
+    "callers cannot replace residents through the composed roster view");
+
+Expect<ArgumentException>(
+    () => composer.Compose(
+        unassignedResidents.Take(11).ToArray(),
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects eleven residents");
+
+Expect<ArgumentException>(
+    () => composer.Compose(
+        unassignedResidents.Append(unassignedResidents[0]).ToArray(),
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects thirteen residents");
+
+Expect<ArgumentNullException>(
+    () => composer.Compose<ResidentDraft>(
+        null!,
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects a null resident collection");
+
+var rosterWithNullEntry = unassignedResidents.ToArray();
+rosterWithNullEntry[1] = null!;
+Expect<ArgumentException>(
+    () => composer.Compose(
+        rosterWithNullEntry,
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects null resident entries");
+
+Expect<ArgumentNullException>(
+    () => composer.Compose(
+        unassignedResidents,
+        configuration,
+        seed: 417,
+        null!),
+    "roster composer rejects a null assignment callback");
+
+Expect<InvalidOperationException>(
+    () => composer.Compose<ResidentDraft>(
+        unassignedResidents,
+        configuration,
+        seed: 417,
+        static (_, _) => null!),
+    "roster composer rejects a callback that returns null");
+
+var callbackInvocationCount = 0;
+_ = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 417,
+    (resident, professionId) =>
+    {
+        callbackInvocationCount++;
+        return resident with { ProfessionId = professionId };
+    });
+Check(callbackInvocationCount == 12,
+    "assignment callback is invoked exactly once for each validated resident");
+
+var sourceArray = unassignedResidents.ToArray();
+var firstSourceId = sourceArray[0].Id;
+var snapshotIsolatedRoster = composer.Compose(
+    sourceArray,
+    configuration,
+    seed: 417,
+    (resident, professionId) =>
+    {
+        if (resident.Id == firstSourceId)
+            sourceArray[0] = sourceArray[1];
+
+        return resident with { ProfessionId = professionId };
+    });
+Check(snapshotIsolatedRoster[0].Id == firstSourceId,
+    "composition uses a complete input snapshot even if the source collection changes in the callback");
+
+var inconsistentShortList = new InconsistentReadOnlyList<ResidentDraft>(
+    unassignedResidents.Take(11).ToArray(),
+    reportedCount: 12);
+var invalidListCallbackCalls = 0;
+Expect<ArgumentException>(
+    () => composer.Compose(
+        inconsistentShortList,
+        configuration,
+        seed: 417,
+        (resident, professionId) =>
+        {
+            invalidListCallbackCalls++;
+            return resident with { ProfessionId = professionId };
+        }),
+    "roster composer rejects a collection whose enumerator yields fewer items than Count");
+Check(invalidListCallbackCalls == 0,
+    "assignment callback is not invoked for an under-enumerated collection");
+
+var inconsistentLongList = new InconsistentReadOnlyList<ResidentDraft>(
+    unassignedResidents.Append(unassignedResidents[0]).ToArray(),
+    reportedCount: 12);
+Expect<ArgumentException>(
+    () => composer.Compose(
+        inconsistentLongList,
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects a collection whose enumerator yields more items than Count");
+
+var inconsistentDeclaredCount = new InconsistentReadOnlyList<ResidentDraft>(
+    unassignedResidents,
+    reportedCount: 11);
+Expect<ArgumentException>(
+    () => composer.Compose(
+        inconsistentDeclaredCount,
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects a collection whose Count is not twelve even if it enumerates twelve");
+
+var valueResidents = Enumerable.Range(1, 12)
+    .Select(index => new ResidentValue(index, $"Resident {index}", "unassigned"))
+    .ToArray();
+var brokenCopyToCollection = new InconsistentCopyToCollection<ResidentValue>(
+    valueResidents,
+    copiedCount: 11);
+var valueRoster = composer.Compose(
+    brokenCopyToCollection,
+    configuration,
+    seed: 417,
+    static (resident, professionId) => resident with { ProfessionId = professionId });
+Check(valueRoster.Count == 12 &&
+      valueRoster.Select(resident => resident.Id).SequenceEqual(Enumerable.Range(1, 12)),
+    "composer enumerates the actual source instead of trusting a broken ICollection.CopyTo implementation");
+
+Console.WriteLine("All profession quota checks passed, including roster composition and collection-boundary checks.");
+
+sealed record ResidentDraft(Guid Id, string Name, string ProfessionId);
+
+readonly record struct ResidentValue(int Id, string Name, string ProfessionId);
+
+sealed class InconsistentReadOnlyList<T>(
+    IReadOnlyList<T> items,
+    int reportedCount) : IReadOnlyList<T>
+{
+    public int Count => reportedCount;
+
+    public T this[int index] => items[index];
+
+    public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
+
+sealed class InconsistentCopyToCollection<T>(
+    IReadOnlyList<T> items,
+    int copiedCount) : IReadOnlyList<T>, ICollection<T>
+{
+    public int Count => items.Count;
+
+    public bool IsReadOnly => true;
+
+    public T this[int index] => items[index];
+
+    public bool Contains(T item) => items.Contains(item);
+
+    public void CopyTo(T[] array, int arrayIndex)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        if (arrayIndex < 0 || arrayIndex > array.Length ||
+            array.Length - arrayIndex < Count)
+            throw new ArgumentException("Destination array is too small.", nameof(array));
+
+        for (var index = 0; index < Math.Min(copiedCount, items.Count); index++)
+            array[arrayIndex + index] = items[index];
+    }
+
+    public void Add(T item) => throw new NotSupportedException();
+
+    public void Clear() => throw new NotSupportedException();
+
+    public bool Remove(T item) => throw new NotSupportedException();
+
+    public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
