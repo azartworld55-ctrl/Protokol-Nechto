@@ -39,16 +39,33 @@ public sealed class ProfessionRosterComposer
                 nameof(residents));
         }
 
-        var residentSnapshot = residents.ToArray();
-        if (residentSnapshot.Length != ProfessionQuotaConfiguration.RequiredResidentCount)
+        // Materialize through enumeration rather than Enumerable.ToArray: some
+        // custom collections optimize ToArray via ICollection.CopyTo and can
+        // silently disagree with their enumerator. Cap the snapshot at 12 so a
+        // broken or unbounded implementation cannot allocate an oversized list.
+        var residentSnapshot = new List<TResident>(
+            ProfessionQuotaConfiguration.RequiredResidentCount);
+        foreach (var resident in residents)
+        {
+            if (residentSnapshot.Count == ProfessionQuotaConfiguration.RequiredResidentCount)
+            {
+                throw new ArgumentException(
+                    $"A roster must enumerate exactly {ProfessionQuotaConfiguration.RequiredResidentCount} residents.",
+                    nameof(residents));
+            }
+
+            if (resident is null)
+                throw new ArgumentException("A roster cannot contain null residents.", nameof(residents));
+
+            residentSnapshot.Add(resident);
+        }
+
+        if (residentSnapshot.Count != ProfessionQuotaConfiguration.RequiredResidentCount)
         {
             throw new ArgumentException(
                 $"A roster must enumerate exactly {ProfessionQuotaConfiguration.RequiredResidentCount} residents.",
                 nameof(residents));
         }
-
-        if (residentSnapshot.Any(resident => resident is null))
-            throw new ArgumentException("A roster cannot contain null residents.", nameof(residents));
 
         var assignments = _allocator.Allocate(configuration, seed);
         var composed = new TResident[ProfessionQuotaConfiguration.RequiredResidentCount];
