@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-17 — Композиция ростера из квот профессий
+
+- Добавлен независимый `ProfessionRosterComposer`: он применяет ровно 12 детерминированных назначений к существующему упорядоченному списку жителей, сохраняет порядок и возвращает read-only коллекцию.
+- Проверка входного ростера использует ограниченный снимок через явное перечисление и не доверяет пользовательскому `ICollection<T>.CopyTo`.
+- Конфигурация квот ограничивает число положительных записей двенадцатью; JSON-десериализатор отклоняет 13-ю запись до добавления в рабочий список.
+- Добавлены регрессионные тесты для несовпадения Count/перечисления, некорректного CopyTo, изменения исходной коллекции, предельного числа квот и JSON-записей.
+- GitHub Actions [run 43999262462](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/43999262462): success; Release build — 0 warnings / 0 errors; smoke tests passed.
+- [PR #3](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/3) — [squash commit e8af350](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/e8af35009fb7e3dac9fc2bd746d7994ed32d7368).
+
 ## 2026-11-16 — Конфигурация квот профессий для 12 жителей
 
 - Добавлен независимый проект `Protocol.ProfessionConfig` с версионированным JSON-контрактом и JSON Schema для явных квот профессий.
