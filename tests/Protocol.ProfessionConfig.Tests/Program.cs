@@ -416,6 +416,89 @@ Expect<InvalidOperationException>(
         static (_, _) => null!),
     "roster composer rejects a callback that returns null");
 
-Console.WriteLine("All profession quota checks passed, including roster composition.");
+var callbackInvocationCount = 0;
+_ = composer.Compose(
+    unassignedResidents,
+    configuration,
+    seed: 417,
+    (resident, professionId) =>
+    {
+        callbackInvocationCount++;
+        return resident with { ProfessionId = professionId };
+    });
+Check(callbackInvocationCount == 12,
+    "assignment callback is invoked exactly once for each validated resident");
+
+var sourceArray = unassignedResidents.ToArray();
+var firstSourceId = sourceArray[0].Id;
+var snapshotIsolatedRoster = composer.Compose(
+    sourceArray,
+    configuration,
+    seed: 417,
+    (resident, professionId) =>
+    {
+        if (resident.Id == firstSourceId)
+            sourceArray[0] = sourceArray[1];
+
+        return resident with { ProfessionId = professionId };
+    });
+Check(snapshotIsolatedRoster[0].Id == firstSourceId,
+    "composition uses a complete input snapshot even if the source collection changes in the callback");
+
+var inconsistentShortList = new InconsistentReadOnlyList<ResidentDraft>(
+    unassignedResidents.Take(11).ToArray(),
+    reportedCount: 12);
+var invalidListCallbackCalls = 0;
+Expect<ArgumentException>(
+    () => composer.Compose(
+        inconsistentShortList,
+        configuration,
+        seed: 417,
+        (resident, professionId) =>
+        {
+            invalidListCallbackCalls++;
+            return resident with { ProfessionId = professionId };
+        }),
+    "roster composer rejects a collection whose enumerator yields fewer items than Count");
+Check(invalidListCallbackCalls == 0,
+    "assignment callback is not invoked for an under-enumerated collection");
+
+var inconsistentLongList = new InconsistentReadOnlyList<ResidentDraft>(
+    unassignedResidents.Append(unassignedResidents[0]).ToArray(),
+    reportedCount: 12);
+Expect<ArgumentException>(
+    () => composer.Compose(
+        inconsistentLongList,
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects a collection whose enumerator yields more items than Count");
+
+var inconsistentDeclaredCount = new InconsistentReadOnlyList<ResidentDraft>(
+    unassignedResidents,
+    reportedCount: 11);
+Expect<ArgumentException>(
+    () => composer.Compose(
+        inconsistentDeclaredCount,
+        configuration,
+        seed: 417,
+        static (resident, professionId) => resident with { ProfessionId = professionId }),
+    "roster composer rejects a collection whose Count is not twelve even if it enumerates twelve");
+
+Console.WriteLine("All profession quota checks passed, including roster composition and collection-boundary checks.");
 
 sealed record ResidentDraft(Guid Id, string Name, string ProfessionId);
+
+sealed class InconsistentReadOnlyList<T>(
+    IReadOnlyList<T> items,
+    int reportedCount) : IReadOnlyList<T>
+{
+    public int Count => reportedCount;
+
+    public T this[int index] => items[index];
+
+    public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+        GetEnumerator();
+}
