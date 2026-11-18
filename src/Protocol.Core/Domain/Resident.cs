@@ -1,8 +1,8 @@
 namespace Protocol.Core.Domain;
 
-// <summary>
-// Immutable resident profile independent from RimWorld, Unity and Harmony.
-// </summary>
+/// <summary>
+/// Immutable resident profile independent from RimWorld, Unity and Harmony.
+/// </summary>
 public sealed class Resident
 {
     public Resident(
@@ -36,9 +36,9 @@ public sealed class Resident
         ProfessionId = professionId.Trim();
         Personality = personality;
         Habits = Array.AsReadOnly(
-            SnapshotUnique(habits, minimumCount: 1, maximumCount: 3, nameof(habits)));
+            SnapshotUnique(habits, minimumCount: 1, maximumCount: 3, parameterName: nameof(habits)));
         Traits = Array.AsReadOnly(
-            SnapshotUnique(traits, minimumCount: 1, maximumCount: 2, nameof(traits)));
+            SnapshotUnique(traits, minimumCount: 1, maximumCount: 2, parameterName: nameof(traits)));
     }
 
     public Guid Id { get; }
