@@ -151,6 +151,19 @@ Expect<ArgumentException>(
     () => new StationRoster(roster.Residents.Take(11), roster.PlayerResidentId, roster.ParasiteResidentId),
     "a roster with eleven residents is rejected");
 
+Expect<ArgumentException>(
+    () => new StationRoster(
+        roster.Residents.Concat(new[] { roster.Residents[0] }),
+        roster.PlayerResidentId,
+        roster.ParasiteResidentId),
+    "a roster with thirteen residents is rejected");
+
+var nullResidents = roster.Residents.ToArray();
+nullResidents[0] = null!;
+Expect<ArgumentException>(
+    () => new StationRoster(nullResidents, roster.PlayerResidentId, roster.ParasiteResidentId),
+    "null resident entries are rejected");
+
 var duplicateResidents = roster.Residents.ToArray();
 duplicateResidents[1] = duplicateResidents[0];
 Expect<ArgumentException>(
