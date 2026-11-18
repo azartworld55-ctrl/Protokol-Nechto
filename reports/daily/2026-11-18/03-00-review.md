@@ -7,9 +7,9 @@
 Состояние сравнения с main после исправлений:
 
 - main: `8c72c531ad706226e6b446af8b58250cb62d1117`.
-- daily/2026-11-18: `ad607843a839d9469fcce830f7c9b2572b9bc0bd`.
-- 10 коммитов впереди, 0 позади.
-- 21 изменённый файл в полном diff; 1 050 добавлений и 54 удаления.
+- проверенный кодовый head daily/2026-11-18: `44104895a5f1abeb090b1f5487c922cfaa863422`.
+- на момент проверки полного diff: 13 коммитов впереди, 0 позади.
+- 22 изменённых файла; 1 221 добавление и 54 удаления. Последующая правка только этого отчёта создаёт отдельный docs-only commit.
 - PR [#4](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4) открыт, Draft, GitHub сообщает mergeable=true.
 - main не изменялся. Слияния не выполнялись.
 
@@ -41,7 +41,7 @@
 
 ### 3. Регрессионные тесты и документация
 
-Добавлены проверки пустых, null и чрезмерных коллекций, повторяющихся привычек/особенностей, а также повторяющихся имён с отличием регистра. Golden snapshot генерации не изменился.
+Добавлены проверки пустых, null и чрезмерных коллекций, повторяющихся привычек/особенностей, повторяющихся имён с отличием регистра, 11/13 элементов и null-жителя в StationRoster. Golden snapshot генерации не изменился. Текст теста уточнён: он подтверждает фиксированный golden snapshot на текущем CI runtime, но не выдаёт одиночный .NET 10 запуск за multi-runtime матрицу.
 
 Обновлён docs/РОСТЕР_ЖИТЕЛЕЙ.md: теперь он описывает ограничения конструктора и проверку уникальности имён.
 
@@ -54,16 +54,17 @@
 
 ## Результаты проверок
 
-### GitHub Actions на итоговом head ad607843
+### GitHub Actions на проверенном кодовом head 44104895
 
-- [Resident core checks — run 44211654487](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44211654487): **success**. Все шаги завершились успешно: сборка Protocol.Determinism, Protocol.ProfessionConfig и Protocol.Core; тесты квот и smoke tests ростера.
-- [Profession quota checks — run 44211654474](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44211654474): **success**. Проверка синтаксиса JSON Schema, Release build и тесты конфигурации квот.
+- [Resident core checks — run 44212148217](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44212148217): **success**. Все шаги завершились успешно: сборка Protocol.Determinism, Protocol.ProfessionConfig и Protocol.Core; тесты квот и smoke tests ростера.
+- [Profession quota checks — run 44212148235](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44212148235): **success**. Проверка синтаксиса JSON Schema, Release build и тесты конфигурации квот.
+- Дополнительный [push run 44212140061](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44212140061): **success**.
 - В Release-сборках: 0 warnings, 0 errors.
-- Resident-core smoke tests: 2 098 assertions passed.
+- Resident-core smoke tests: 2 100 assertions passed.
 - Тесты квот завершились сообщением об успешном прохождении, включая composer и границы пользовательских коллекций.
 - JSON Schema проверена на синтаксическую корректность командой `python3 -m json.tool`. Это именно проверка синтаксиса JSON, не отдельный полный JSON Schema conformance suite.
 
-Дополнительно push-run [44211610362](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44211610362) прошёл на кодовом head 95e5c5d; последующий commit ad607843 менял только документацию. Итоговые PR-run выше прошли уже на ad607843.
+Итоговые PR-run выше прошли на кодовом head 44104895, включая последние проверки ростера на 13 элементов и null-запись. Текущая редакция этого отчёта — только Markdown и не меняет код или тесты.
 
 ### Промежуточные ошибки CI
 
@@ -152,7 +153,8 @@ PR [#1](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/1) остаё�
 - [Документация конструктора Resident — 1a4aa98](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/1a4aa980d976254117966a7cbe5c901236a29117).
 - [Уникальность имён ростера — e967033](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/e96703375629a67be791d4fc5ce5481e1c256bd9).
 - [Регрессионные тесты — 95e5c5d](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/95e5c5db80be808cc8524e50264196a1f46a942d).
-- [Документация и итоговый head — ad60784](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/ad607843a839d9469fcce830f7c9b2572b9bc0bd).
+- [Документация ростера — ad60784](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/ad607843a839d9469fcce830f7c9b2572b9bc0bd).
+- [Уточнение тестового контракта и граничные тесты — 4410489](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/44104895a5f1abeb090b1f5487c922cfaa863422).
 - [PR #4 — ежедневная чистая линия ростера](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4).
 
 main не изменён; PR #4 остаётся Draft и не слит.
