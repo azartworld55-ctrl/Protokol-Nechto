@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-18 — Детерминированная генерация 12 жителей с точными квотами
+
+- Добавлен независимый Protocol.Determinism с фиксированным SplitMix64, unbiased bounded sampling, стабильными GUID и Fisher–Yates.
+- ProfessionQuotaAllocator переведён на общий PRNG без дублирования алгоритма.
+- Добавлен чистый Protocol.Core: immutable-профили 12 жителей с именами, возрастом, личностью, привычками, индивидуальными особенностями и профессиями из явной конфигурации.
+- StationRosterGenerator напрямую использует ProfessionRosterComposer; реальные игровые квоты не задаются по умолчанию.
+- Добавлены smoke tests на точные квоты, полный повторяемый снимок ростера, диапазоны, уникальность, стабильные PRNG-векторы и неизменяемость коллекций.
+- Ports1de/Verse/Unity/Harmony API и игровые DLL не добавлялись; Android-загрузка и mobile UI не проверялись.
+- Этап 03: Resident отклоняет null/пустые/повторяющиеся и выходящие за пределы коллекции привычки/особенности; StationRoster проверяет ровно 12 жителей, уникальность ID и имён без учёта регистра.
+- Этап 04: добавлены регрессионные проверки неизвестных enum-значений и раннего прекращения перечисления чрезмерных/бесконечных последовательностей для привычек, особенностей и ростера.
+- Последние полностью завершённые GitHub Actions на проверенном docs-head `c5cba647` (кодовый commit `5ede129`): [resident core PR run 44213383160](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213383160) — success, три Release build: 0 warnings / 0 errors, 2108 assertions; [profession quota PR run 44213383242](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213383242) — success; дополнительный push run [44213193849](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213193849) прошёл на кодовом commit `5ede129`.
+- [PR #4](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4) остаётся Draft и не слит; финальный кодовый commit — [5ede129](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/5ede1294ae481ab431d34923a65d0dc5a8d0b692). Блокер: социальные связи, личная память, разговоры/слухи и автономное поведение ещё не реализованы.
+
 ## 2026-11-17 — Композиция ростера из квот профессий
 
 - Добавлен независимый `ProfessionRosterComposer`: он применяет ровно 12 детерминированных назначений к существующему упорядоченному списку жителей, сохраняет порядок и возвращает read-only коллекцию.

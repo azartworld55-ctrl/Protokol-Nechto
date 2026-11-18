@@ -4,12 +4,14 @@ on:
   push:
     paths:
       - "src/Protocol.ProfessionConfig/**"
+      - "src/Protocol.Determinism/**"
       - "tests/Protocol.ProfessionConfig.Tests/**"
       - "config/profession-quotas.schema.json"
       - ".github/workflows/profession-config.yml"
   pull_request:
     paths:
       - "src/Protocol.ProfessionConfig/**"
+      - "src/Protocol.Determinism/**"
       - "tests/Protocol.ProfessionConfig.Tests/**"
       - "config/profession-quotas.schema.json"
       - ".github/workflows/profession-config.yml"

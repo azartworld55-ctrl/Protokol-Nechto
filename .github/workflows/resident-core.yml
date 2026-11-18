@@ -1,0 +1,52 @@
+name: Resident core checks
+
+on:
+  push:
+    paths:
+      - "src/Protocol.Core/**"
+      - "src/Protocol.Determinism/**"
+      - "src/Protocol.ProfessionConfig/**"
+      - "tests/Protocol.Core.SmokeTests/**"
+      - "tests/Protocol.ProfessionConfig.Tests/**"
+      - ".github/workflows/resident-core.yml"
+      - ".github/workflows/profession-config.yml"
+  pull_request:
+    paths:
+      - "src/Protocol.Core/**"
+      - "src/Protocol.Determinism/**"
+      - "src/Protocol.ProfessionConfig/**"
+      - "tests/Protocol.Core.SmokeTests/**"
+      - "tests/Protocol.ProfessionConfig.Tests/**"
+      - ".github/workflows/resident-core.yml"
+      - ".github/workflows/profession-config.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build deterministic primitives
+        run: dotnet build src/Protocol.Determinism/Protocol.Determinism.csproj --configuration Release
+
+      - name: Build profession configuration
+        run: dotnet build src/Protocol.ProfessionConfig/Protocol.ProfessionConfig.csproj --configuration Release
+
+      - name: Run profession quota regression tests
+        run: dotnet run --project tests/Protocol.ProfessionConfig.Tests/Protocol.ProfessionConfig.Tests.csproj --configuration Release
+
+      - name: Build resident core
+        run: dotnet build src/Protocol.Core/Protocol.Core.csproj --configuration Release
+
+      - name: Run resident core smoke tests
+        run: dotnet run --project tests/Protocol.Core.SmokeTests/Protocol.Core.SmokeTests.csproj --configuration Release
