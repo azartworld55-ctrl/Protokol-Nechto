@@ -158,6 +158,23 @@ Expect<ArgumentException>(
         roster.ParasiteResidentId),
     "a roster with thirteen residents is rejected");
 
+var rosterEnumerationCount = 0;
+var unboundedRosterSequence = roster.Residents
+    .Concat(Enumerable.Repeat(roster.Residents[0], int.MaxValue))
+    .Select(resident =>
+    {
+        rosterEnumerationCount++;
+        return resident;
+    });
+Expect<ArgumentException>(
+    () => new StationRoster(
+        unboundedRosterSequence,
+        roster.PlayerResidentId,
+        roster.ParasiteResidentId),
+    "station roster construction rejects an unbounded resident sequence");
+Check(rosterEnumerationCount == StationRoster.RequiredResidentCount + 1,
+    "station roster construction stops after the thirteenth item");
+
 var nullResidents = roster.Residents.ToArray();
 nullResidents[0] = null!;
 Expect<ArgumentException>(
@@ -266,6 +283,68 @@ Expect<ArgumentException>(
         [ResidentHabit.DrinksCoffee],
         Enum.GetValues<ResidentTrait>()),
     "more than two individual traits are rejected before unbounded materialization");
+
+Expect<ArgumentOutOfRangeException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Unknown habit",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        [(ResidentHabit)int.MaxValue],
+        [ResidentTrait.Observant]),
+    "undefined habit enum values are rejected");
+
+Expect<ArgumentOutOfRangeException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Unknown trait",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        [ResidentHabit.DrinksCoffee],
+        [(ResidentTrait)int.MaxValue]),
+    "undefined trait enum values are rejected");
+
+var habitEnumerationCount = 0;
+var excessiveHabitSequence = Enumerable.Range(0, int.MaxValue)
+    .Select(index =>
+    {
+        habitEnumerationCount++;
+        return (ResidentHabit)index;
+    });
+Expect<ArgumentException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Bounded habit enumeration",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        excessiveHabitSequence,
+        [ResidentTrait.Observant]),
+    "habit enumeration stops when the maximum count is exceeded");
+Check(habitEnumerationCount == 4,
+    "habit enumeration consumes only the first excessive item");
+
+var traitEnumerationCount = 0;
+var excessiveTraitSequence = Enumerable.Range(0, int.MaxValue)
+    .Select(index =>
+    {
+        traitEnumerationCount++;
+        return (ResidentTrait)index;
+    });
+Expect<ArgumentException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Bounded trait enumeration",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        [ResidentHabit.DrinksCoffee],
+        excessiveTraitSequence),
+    "trait enumeration stops when the maximum count is exceeded");
+Check(traitEnumerationCount == 3,
+    "trait enumeration consumes only the first excessive item");
 
 Expect<ArgumentNullException>(
     () => new Resident(
