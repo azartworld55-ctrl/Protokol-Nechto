@@ -1,8 +1,8 @@
 namespace Protocol.Core.Domain;
 
-/// <summary>
-/// Immutable resident profile independent from RimWorld, Unity and Harmony.
-/// </summary>
+// <summary>
+// Immutable resident profile independent from RimWorld, Unity and Harmony.
+// </summary>
 public sealed class Resident
 {
     public Resident(
@@ -10,10 +10,14 @@ public sealed class Resident
         string name,
         int age,
         string professionId,
-        ResidentPersonality? personality = null,
-        IEnumerable<ResidentHabit>? habits = null,
-        IEnumerable<ResidentTrait>? traits = null)
+        ResidentPersonality personality,
+        IEnumerable<ResidentHabit> habits,
+        IEnumerable<ResidentTrait> traits)
     {
+        ArgumentNullException.ThrowIfNull(personality);
+        ArgumentNullException.ThrowIfNull(habits);
+        ArgumentNullException.ThrowIfNull(traits);
+
         if (id == Guid.Empty)
             throw new ArgumentException("Resident id cannot be empty.", nameof(id));
 
@@ -30,9 +34,11 @@ public sealed class Resident
         Name = name.Trim();
         Age = age;
         ProfessionId = professionId.Trim();
-        Personality = personality ?? ResidentPersonality.Neutral;
-        Habits = Array.AsReadOnly(SnapshotUnique(habits ?? Array.Empty<ResidentHabit>(), nameof(habits)));
-        Traits = Array.AsReadOnly(SnapshotUnique(traits ?? Array.Empty<ResidentTrait>(), nameof(traits)));
+        Personality = personality;
+        Habits = Array.AsReadOnly(
+            SnapshotUnique(habits, minimumCount: 1, maximumCount: 3, nameof(habits)));
+        Traits = Array.AsReadOnly(
+            SnapshotUnique(traits, minimumCount: 1, maximumCount: 2, nameof(traits)));
     }
 
     public Guid Id { get; }
@@ -45,14 +51,23 @@ public sealed class Resident
 
     private static TEnum[] SnapshotUnique<TEnum>(
         IEnumerable<TEnum> values,
+        int minimumCount,
+        int maximumCount,
         string parameterName)
         where TEnum : struct, Enum
     {
-        var snapshot = new List<TEnum>();
+        var snapshot = new List<TEnum>(maximumCount);
         var seen = new HashSet<TEnum>();
 
         foreach (var value in values)
         {
+            if (snapshot.Count == maximumCount)
+            {
+                throw new ArgumentException(
+                    $"{typeof(TEnum).Name} values cannot contain more than {maximumCount} entries.",
+                    parameterName);
+            }
+
             if (!Enum.IsDefined(value))
                 throw new ArgumentOutOfRangeException(parameterName, $"Unknown {typeof(TEnum).Name} value.");
 
@@ -60,6 +75,13 @@ public sealed class Resident
                 throw new ArgumentException($"{typeof(TEnum).Name} values must be unique.", parameterName);
 
             snapshot.Add(value);
+        }
+
+        if (snapshot.Count < minimumCount)
+        {
+            throw new ArgumentException(
+                $"{typeof(TEnum).Name} values must contain at least {minimumCount} entry.",
+                parameterName);
         }
 
         return snapshot.ToArray();
