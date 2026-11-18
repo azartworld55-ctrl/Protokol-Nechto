@@ -69,7 +69,8 @@ var differentSeedRoster = generator.Generate(seed + 1, configuration);
 
 Check(roster.Residents.Count == StationRoster.RequiredResidentCount, "generated roster contains exactly twelve residents");
 Check(roster.Residents.Select(resident => resident.Id).Distinct().Count() == 12, "resident IDs are unique");
-Check(roster.Residents.Select(resident => resident.Name).Distinct(StringComparer.Ordinal).Count() == 12, "resident names are unique");
+Check(roster.Residents.Select(resident => resident.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 12,
+    "resident names are unique without case differences");
 Check(roster.Residents.All(resident => resident.Age is >= 20 and <= 65), "generated ages remain in the configured adult range");
 Check(roster.PlayerResidentId != roster.ParasiteResidentId, "player and parasite identities are distinct");
 Check(roster.Residents.Any(resident => resident.Id == roster.PlayerResidentId), "player identity belongs to the roster");
@@ -156,6 +157,29 @@ Expect<ArgumentException>(
     () => new StationRoster(duplicateResidents, roster.PlayerResidentId, roster.ParasiteResidentId),
     "duplicate resident IDs are rejected");
 
+var duplicateNameResidents = roster.Residents.ToArray();
+var sourceResident = duplicateNameResidents[0];
+var duplicateNameIndex = Array.FindIndex(
+    duplicateNameResidents,
+    resident => resident.Id != sourceResident.Id &&
+                resident.Id != roster.PlayerResidentId &&
+                resident.Id != roster.ParasiteResidentId);
+if (duplicateNameIndex < 0)
+    throw new InvalidOperationException("A non-player, non-parasite resident is required for the duplicate-name test.");
+
+var replacedResident = duplicateNameResidents[duplicateNameIndex];
+duplicateNameResidents[duplicateNameIndex] = new Resident(
+    Guid.NewGuid(),
+    sourceResident.Name.ToUpperInvariant(),
+    replacedResident.Age,
+    replacedResident.ProfessionId,
+    replacedResident.Personality,
+    replacedResident.Habits,
+    replacedResident.Traits);
+Expect<ArgumentException>(
+    () => new StationRoster(duplicateNameResidents, roster.PlayerResidentId, roster.ParasiteResidentId),
+    "duplicate resident names are rejected case-insensitively");
+
 Expect<ArgumentException>(
     () => new StationRoster(roster.Residents, roster.PlayerResidentId, roster.PlayerResidentId),
     "the player cannot also be the parasite");
@@ -170,7 +194,9 @@ Expect<ArgumentException>(
         "Duplicate habit",
         30,
         "test-profession-alpha",
-        habits: [ResidentHabit.DrinksCoffee, ResidentHabit.DrinksCoffee]),
+        ResidentPersonality.Neutral,
+        [ResidentHabit.DrinksCoffee, ResidentHabit.DrinksCoffee],
+        [ResidentTrait.Observant]),
     "duplicate habits are rejected");
 
 Expect<ArgumentException>(
@@ -179,8 +205,76 @@ Expect<ArgumentException>(
         "Duplicate trait",
         30,
         "test-profession-alpha",
-        traits: [ResidentTrait.Observant, ResidentTrait.Observant]),
+        ResidentPersonality.Neutral,
+        [ResidentHabit.DrinksCoffee],
+        [ResidentTrait.Observant, ResidentTrait.Observant]),
     "duplicate individual traits are rejected");
+
+Expect<ArgumentException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "No habits",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        Array.Empty<ResidentHabit>(),
+        [ResidentTrait.Observant]),
+    "residents without habits are rejected");
+
+Expect<ArgumentException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Too many habits",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        Enum.GetValues<ResidentHabit>(),
+        [ResidentTrait.Observant]),
+    "more than three habits are rejected before unbounded materialization");
+
+Expect<ArgumentException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "No traits",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        [ResidentHabit.DrinksCoffee],
+        Array.Empty<ResidentTrait>()),
+    "residents without individual traits are rejected");
+
+Expect<ArgumentException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Too many traits",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        [ResidentHabit.DrinksCoffee],
+        Enum.GetValues<ResidentTrait>()),
+    "more than two individual traits are rejected before unbounded materialization");
+
+Expect<ArgumentNullException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Null habits",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        null!,
+        [ResidentTrait.Observant]),
+    "null habit collections are rejected");
+
+Expect<ArgumentNullException>(
+    () => new Resident(
+        Guid.NewGuid(),
+        "Null traits",
+        30,
+        "test-profession-alpha",
+        ResidentPersonality.Neutral,
+        [ResidentHabit.DrinksCoffee],
+        null!),
+    "null trait collections are rejected");
 
 Expect<ArgumentException>(
     () => generator.Generate(seed, null!),
