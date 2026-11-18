@@ -6,6 +6,8 @@
 - StationRosterGenerator напрямую использует ProfessionRosterComposer; реальные игровые квоты не задаются по умолчанию.
 - Добавлены smoke tests на точные квоты, полный повторяемый снимок ростера, диапазоны, уникальность, стабильные PRNG-векторы и неизменяемость коллекций.
 - Ports1de/Verse/Unity/Harmony API и игровые DLL не добавлялись; Android-загрузка и mobile UI не проверялись.
+- GitHub Actions: [resident core 44203944505](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44203944505) — success, Release build без warnings/errors, 2091 assertions; [profession quota 44203950975](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44203950975) — success.
+- [PR #4](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4) открыт как Draft; [проверенный кодовый commit 0249465](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/0249465bc16c92a235da96526f7c3658a37b6eaf).
 
 # Changelog
 
