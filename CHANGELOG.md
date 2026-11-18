@@ -1,3 +1,5 @@
+# Changelog
+
 ## 2026-11-18 — Детерминированная генерация 12 жителей с точными квотами
 
 - Добавлен независимый Protocol.Determinism с фиксированным SplitMix64, unbiased bounded sampling, стабильными GUID и Fisher–Yates.
@@ -11,8 +13,6 @@
 - Финальные GitHub Actions на кодовом head 5ede129: [resident core PR run 44213200375](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213200375) — success, три Release build: 0 warnings / 0 errors, 2108 assertions; [profession quota PR run 44213200355](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213200355) — success; [resident core push run 44213193849](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213193849) — success.
 - [PR #4](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4) остаётся Draft и не слит: социальные связи, личная память, разговоры/слухи и автономное поведение ещё не реализованы.
 - [PR #4](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4) открыт как Draft; [проверенный кодовый commit 0249465](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/0249465bc16c92a235da96526f7c3658a37b6eaf).
-
-# Changelog
 
 ## 2026-11-17 — Композиция ростера из квот профессий
 
