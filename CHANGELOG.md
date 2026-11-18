@@ -6,7 +6,10 @@
 - StationRosterGenerator напрямую использует ProfessionRosterComposer; реальные игровые квоты не задаются по умолчанию.
 - Добавлены smoke tests на точные квоты, полный повторяемый снимок ростера, диапазоны, уникальность, стабильные PRNG-векторы и неизменяемость коллекций.
 - Ports1de/Verse/Unity/Harmony API и игровые DLL не добавлялись; Android-загрузка и mobile UI не проверялись.
-- GitHub Actions: [resident core 44203944505](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44203944505) — success, Release build без warnings/errors, 2091 assertions; [profession quota 44203950975](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44203950975) — success.
+- Этап 03: Resident отклоняет null/пустые/повторяющиеся и выходящие за пределы коллекции привычки/особенности; StationRoster проверяет ровно 12 жителей, уникальность ID и имён без учёта регистра.
+- Этап 04: добавлены регрессионные проверки неизвестных enum-значений и раннего прекращения перечисления чрезмерных/бесконечных последовательностей для привычек, особенностей и ростера.
+- Финальные GitHub Actions на кодовом head 5ede129: [resident core PR run 44213200375](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213200375) — success, три Release build: 0 warnings / 0 errors, 2108 assertions; [profession quota PR run 44213200355](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213200355) — success; [resident core push run 44213193849](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44213193849) — success.
+- [PR #4](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4) остаётся Draft и не слит: социальные связи, личная память, разговоры/слухи и автономное поведение ещё не реализованы.
 - [PR #4](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/4) открыт как Draft; [проверенный кодовый commit 0249465](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/0249465bc16c92a235da96526f7c3658a37b6eaf).
 
 # Changelog
