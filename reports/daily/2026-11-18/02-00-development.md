@@ -136,3 +136,14 @@
 4. После социальной модели добавить интеграционные тесты полного жизненного цикла памяти и слуха. Только затем переходить к автономному поведению NPC.
 5. Не добавлять игровой адаптер, Verse/Harmony hooks, save API или мобильный UI до подтверждения runtime и DLL Ports1de. Не менять стандартное сенсорное управление порта.
 
+
+
+## Дополнение: повторная проверка PR на текущем коде
+
+После записи основного отчёта GitHub завершил проверки на head a04fa2e1e58b1dd81bad8e0915ac7f16f9615a52:
+
+- [Resident core PR run 44204205861](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44204205861) — success; все build/test steps завершились успешно.
+- [Profession quota PR run 44204205871](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44204205871) — success.
+- Предыдущий resident-core PR run [44203951038](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44203951038) также завершился success.
+
+Таким образом, итоговый кодовый commit 0249465 и PR merge-ref после добавления документации проверены успешными GitHub Actions. Следующий commit после этих запусков содержит только это дополнение к отчёту; исходники и тесты не менялись.
