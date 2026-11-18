@@ -82,7 +82,9 @@
 
 - Ветка: daily/2026-11-19.
 - Базовый main: 8c72c531ad706226e6b446af8b58250cb62d1117.
-- Commit и PR будут указаны после фиксации изменений и CI.
+- Основной кодовый commit: [b35e8b0](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/b35e8b0d5aeab7b92fdd0eebed14b9e49ece3095).
+- Draft PR: [#5 — Направленные отношения, личная память и слухи](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/5).
+- Compare main...daily/2026-11-19 на момент фиксации: 2 коммита впереди, 0 позади, 18 файлов.
 
 ## Что оставить этапу 03:00
 
