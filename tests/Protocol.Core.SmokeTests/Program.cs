@@ -133,7 +133,7 @@ var snapshotHash = Convert.ToHexString(
 
 Check(snapshot == Snapshot(repeatedRoster), "the complete roster is reproducible for a fixed seed and configuration");
 Check(snapshotHash == "ceb0c2ec3677af20bef6a671758021887f94d9425d8417ac8d242d26fc4c5715",
-    "the complete roster matches the cross-runtime golden snapshot for the fixed seed");
+    "the complete roster matches the checked-in golden snapshot for the fixed seed");
 Check(snapshot != Snapshot(differentSeedRoster), "a different seed changes the generated roster");
 
 var readOnlyResidents = roster.Residents;
