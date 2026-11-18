@@ -16,24 +16,37 @@ public sealed class StationRoster
         ArgumentNullException.ThrowIfNull(residents);
 
         var snapshot = new List<Resident>(RequiredResidentCount);
+        var ids = new HashSet<Guid>();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var resident in residents)
         {
             if (snapshot.Count == RequiredResidentCount)
-                throw new ArgumentException($"A station roster must contain exactly {RequiredResidentCount} residents.", nameof(residents));
+            {
+                throw new ArgumentException(
+                    $"A station roster must contain exactly {RequiredResidentCount} residents.",
+                    nameof(residents));
+            }
 
             if (resident is null)
                 throw new ArgumentException("Roster cannot contain null residents.", nameof(residents));
+
+            if (!ids.Add(resident.Id))
+                throw new ArgumentException("Every resident must have a unique id.", nameof(residents));
+
+            if (!names.Add(resident.Name))
+                throw new ArgumentException("Every resident must have a unique name.", nameof(residents));
 
             snapshot.Add(resident);
         }
 
         if (snapshot.Count != RequiredResidentCount)
-            throw new ArgumentException($"A station roster must contain exactly {RequiredResidentCount} residents.", nameof(residents));
+        {
+            throw new ArgumentException(
+                $"A station roster must contain exactly {RequiredResidentCount} residents.",
+                nameof(residents));
+        }
 
-        if (snapshot.Select(resident => resident.Id).Distinct().Count() != RequiredResidentCount)
-            throw new ArgumentException("Every resident must have a unique id.", nameof(residents));
-
-        var ids = snapshot.Select(resident => resident.Id).ToHashSet();
         if (!ids.Contains(playerResidentId))
             throw new ArgumentException("Player resident must belong to the roster.", nameof(playerResidentId));
 
