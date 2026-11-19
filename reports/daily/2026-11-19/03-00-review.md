@@ -92,7 +92,9 @@ README по-прежнему называет «Тюремную колонию�
 - В обоих runs успешны шаги Set up .NET 10, Release build и Run social domain checks. Проект включает `Nullable=enable` и `TreatWarningsAsErrors=true`.
 - Тестовый исходник содержит 36 вызовов `Check` и 12 сценариев `Expect<TException>`; workflow завершился сообщением `All social core checks passed.`
 - Один промежуточный run на незавершённом commit `eab2ecf` завершился неуспешно на шаге тестов; после обновления тестов run на `954f999` прошёл, затем оба runs на финальном кодовом head `590f2e6` прошли. Сборка на промежуточном неуспешном run завершилась успешно.
-- После успешного кодового head был добавлен только документационный commit `a0d02f8`; workflow фильтруется по `src/Protocol.Social/**` и `tests/Protocol.Social.Tests/**`, поэтому docs-only commit не запускал новый C# workflow.
+- После документационного commit `a0d02f8` PR workflow [44428116698](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44428116698) завершился success. Для события pull_request GitHub оценил полный diff PR, поэтому workflow запустился несмотря на docs-only последний commit.
+- После добавления отчёта commit `8f7851a` PR workflow [44428251325](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44428251325) также завершился success на точном head `8f7851aa47db6202ff7017f84e313600e285f15b`; Release build и social checks завершились успешно.
+- Последующее обновление только этого отчёта создаёт новый PR head; результат workflow для нового head нужно проверить отдельно. Нельзя переносить success предыдущего SHA на ещё не завершившийся run.
 - Локальный .NET SDK отсутствует (`dotnet: command not found`); локальная сборка и локальный запуск C# тестов не выполнялись. Успешная сборка/тесты подтверждены удалённым CI, не локальной средой.
 - JSON Schema квот разобрана и прошла meta-validation Draft 2020-12; сама схема не менялась.
 - `PrisonColony/About/About.xml` и `PrisonColony/Defs/MainButtonDefs/PrisonColony_MainButton.xml` разобраны XML parser без ошибок. Они не менялись относительно main и относятся к отдельному моду PrisonColony.
