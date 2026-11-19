@@ -52,6 +52,24 @@ public sealed class MemoryEntry
         if (retellCount < 0)
             throw new ArgumentOutOfRangeException(nameof(retellCount));
 
+        if (sourceConversationId == Guid.Empty)
+            throw new ArgumentException("Source conversation id cannot be empty.", nameof(sourceConversationId));
+
+        if (kind == MemoryKind.DirectObservation &&
+            (sourceConversationId is not null ||
+             retellCount != 0 ||
+             confidencePermille != 1000 ||
+             originalObserverId != lastInformantId))
+        {
+            throw new ArgumentException("Direct observations cannot contain rumor provenance or decay.", nameof(kind));
+        }
+
+        if (kind == MemoryKind.HeardRumor &&
+            (sourceConversationId is null || retellCount == 0 || confidencePermille == 0))
+        {
+            throw new ArgumentException("Rumors require a source conversation, a retell count and positive confidence.", nameof(kind));
+        }
+
         EventId = eventId;
         SubjectId = subjectId;
         OriginalObserverId = originalObserverId;
