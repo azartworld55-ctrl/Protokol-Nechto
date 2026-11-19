@@ -8,6 +8,9 @@
 - Регрессионные тесты покрывают симметрию отношений, overflow, приватность памяти, кеш снимков, прямое подтверждение слуха, временные границы и явное общение.
 - Добавлен отдельный GitHub Actions workflow для социального домена.
 - Значения затухания и порогов в тестах синтетические; игровые настройки не утверждались.
+- Финальный аудит добавил регрессионные проверки повторного event ID с другим subject, несоответствия владельца журнала отправителя/получателя и пустого event ID.
+- GitHub Actions [PR run 44438569093](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44438569093) и [push run 44438559751](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44438559751): success; Release build — 0 warnings / 0 errors.
+- [PR #5](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/5) — [squash merge commit 89507ca](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/89507ca58f81d9ce3b20a89f40f6bae9b0d89fb7).
 
 
 ## 2026-11-17 — Композиция ростера из квот профессий
