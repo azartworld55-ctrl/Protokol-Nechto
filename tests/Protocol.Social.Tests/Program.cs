@@ -183,6 +183,27 @@ Check(firstShare.Entry.OriginalObserverId == alice &&
       firstShare.Entry.LearnedAtTick == 7 &&
       firstShare.Entry.SourceConversationId == firstConversationId,
     "a rumor preserves its original observer and records its latest source");
+
+var mismatchedSenderJournal = new MemoryJournal(carol);
+var mismatchedSenderShare = rumorService.TryRetell(
+    firstConversation, alice, bob, eventId,
+    mismatchedSenderJournal, new MemoryJournal(bob), relationships, policy);
+Check(mismatchedSenderShare.Status == RumorShareStatus.InvalidConversationParticipants,
+    "a sender cannot supply another resident's journal");
+
+var mismatchedRecipientJournal = new MemoryJournal(dave);
+var mismatchedRecipientShare = rumorService.TryRetell(
+    firstConversation, alice, bob, eventId,
+    aliceJournal, mismatchedRecipientJournal, relationships, policy);
+Check(mismatchedRecipientShare.Status == RumorShareStatus.InvalidConversationParticipants &&
+      mismatchedRecipientJournal.Entries.Count == 0,
+    "a recipient cannot receive a rumor into another resident's journal");
+
+Expect<ArgumentException>(
+    () => rumorService.TryRetell(
+        firstConversation, alice, bob, Guid.Empty, aliceJournal,
+        new MemoryJournal(bob), relationships, policy),
+    "empty event ids are rejected before rumor transmission");
 Check(aliceJournal.Entries.Single(entry => entry.EventId == eventId).Kind ==
       MemoryKind.DirectObservation,
     "sharing does not erase or rewrite the original observation");
@@ -288,6 +309,12 @@ Expect<ArgumentException>(
         confirmationEventId, bob, subject, eventTick: 11, observedAtTick: 15,
         description: "Conflicting event time.")),
     "an event id cannot be reused for a different event tick");
+
+Expect<ArgumentException>(
+    () => confirmationRecipientJournal.RecordObservation(new DirectObservation(
+        confirmationEventId, bob, carol, eventTick: 12, observedAtTick: 15,
+        description: "A different subject cannot reuse this event id.")),
+    "an event id cannot be reused for a different subject");
 
 Expect<ArgumentException>(
     () => new ConversationEvent(Guid.Empty, alice, bob, 1),
