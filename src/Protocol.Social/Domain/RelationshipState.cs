@@ -1,7 +1,7 @@
 namespace Protocol.Social.Domain;
 
 /// <summary>
-/// One resident's opinion of another resident. Trust and familiarity are
+/// One shared relationship state for a resident pair. Trust and familiarity are
 /// intentionally independent scales in the inclusive range 0..100.
 /// </summary>
 public sealed record RelationshipState
