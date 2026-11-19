@@ -86,7 +86,7 @@ Check(!aliceJournal.RecordObservation(observation),
     "duplicate event ids are not counted twice");
 
 var immutableSnapshot = aliceJournal.Entries;
-Check(ReferenceEquals(immutableSnapshot, aliceJournal.Entries),
+Check(object.ReferenceEquals(immutableSnapshot, aliceJournal.Entries),
     "unchanged journals reuse their cached immutable snapshot");
 var secondObservation = new DirectObservation(
     secondEventId,
@@ -98,7 +98,7 @@ Check(aliceJournal.RecordObservation(secondObservation),
     "a separate event can be recorded");
 Check(immutableSnapshot.Count == 1,
     "previously returned memory snapshots do not change after later writes");
-Check(!ReferenceEquals(immutableSnapshot, aliceJournal.Entries),
+Check(!object.ReferenceEquals(immutableSnapshot, aliceJournal.Entries),
     "a journal write invalidates only the current snapshot cache");
 
 var readOnlyEntries = (IList<MemoryEntry>)immutableSnapshot;
