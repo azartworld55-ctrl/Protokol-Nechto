@@ -110,8 +110,8 @@
 - Базовый main: [e49c7ec](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/e49c7ecaa591fd7b2cd67220a28e251f429820d1).
 - Кодовый commit: [04c5673](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/04c5673032ef5a8b743e8e528d92b55ca3748763).
 - Ветка: [daily/2026-11-20](https://github.com/azartworld55-ctrl/Protokol-Nechto/tree/daily/2026-11-20).
-- Draft PR: [#6 — Интеграция ростера из 12 жителей с социальным ядром](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/6), open, `mergeable=true`, `mergeable_state=clean`.
-- Сравнение `main...daily/2026-11-20` после добавления отчёта: 2 commits ahead, 0 behind; 25 файлов, +1499 / −192.
+- Draft PR: [#6 — Интеграция ростера из 12 жителей с социальным ядром](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/6), open Draft, `mergeable=true`; после последнего docs-only commit GitHub сообщает `mergeable_state=unstable`. Слияние не выполнялось.
+- Кодовый diff commit `04c5673` относительно main: 1 commit ahead, 0 behind; 24 файла, +1376 / −192. Все последующие commits этой ветки меняют только ежедневный отчёт; C#-исходники и тесты не менялись.
 - PR #1 и PR #4 остаются открытыми Draft; PR #5 уже слит ранее.
 - Изменения не слиты в main.
 
