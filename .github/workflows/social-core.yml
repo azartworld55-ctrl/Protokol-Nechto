@@ -1,15 +1,25 @@
-name: Social core checks
+name: Social and station integration checks
 
 on:
   push:
     paths:
+      - "src/Protocol.Core/**"
+      - "src/Protocol.Determinism/**"
+      - "src/Protocol.ProfessionConfig/**"
       - "src/Protocol.Social/**"
+      - "tests/Protocol.Core.SmokeTests/**"
       - "tests/Protocol.Social.Tests/**"
+      - "tests/Protocol.StationIntegration.Tests/**"
       - ".github/workflows/social-core.yml"
   pull_request:
     paths:
+      - "src/Protocol.Core/**"
+      - "src/Protocol.Determinism/**"
+      - "src/Protocol.ProfessionConfig/**"
       - "src/Protocol.Social/**"
+      - "tests/Protocol.Core.SmokeTests/**"
       - "tests/Protocol.Social.Tests/**"
+      - "tests/Protocol.StationIntegration.Tests/**"
       - ".github/workflows/social-core.yml"
   workflow_dispatch:
 
@@ -17,7 +27,7 @@ permissions:
   contents: read
 
 jobs:
-  social-core:
+  station-social:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -28,8 +38,17 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Build social domain library
+      - name: Build deterministic resident core
+        run: dotnet build src/Protocol.Core/Protocol.Core.csproj --configuration Release
+
+      - name: Run resident core invariant checks
+        run: dotnet run --project tests/Protocol.Core.SmokeTests/Protocol.Core.SmokeTests.csproj --configuration Release
+
+      - name: Build social domain
         run: dotnet build src/Protocol.Social/Protocol.Social.csproj --configuration Release
 
       - name: Run social domain checks
         run: dotnet run --project tests/Protocol.Social.Tests/Protocol.Social.Tests.csproj --configuration Release
+
+      - name: Run twelve-resident social integration checks
+        run: dotnet run --project tests/Protocol.StationIntegration.Tests/Protocol.StationIntegration.Tests.csproj --configuration Release

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Protocol.Core/Protocol.Core.csproj" />
+    <ProjectReference Include="../../src/Protocol.ProfessionConfig/Protocol.ProfessionConfig.csproj" />
+    <ProjectReference Include="../../src/Protocol.Social/Protocol.Social.csproj" />
+  </ItemGroup>
+</Project>

@@ -3,12 +3,14 @@ name: Profession quota checks
 on:
   push:
     paths:
+      - "src/Protocol.Determinism/**"
       - "src/Protocol.ProfessionConfig/**"
       - "tests/Protocol.ProfessionConfig.Tests/**"
       - "config/profession-quotas.schema.json"
       - ".github/workflows/profession-config.yml"
   pull_request:
     paths:
+      - "src/Protocol.Determinism/**"
       - "src/Protocol.ProfessionConfig/**"
       - "tests/Protocol.ProfessionConfig.Tests/**"
       - "config/profession-quotas.schema.json"
