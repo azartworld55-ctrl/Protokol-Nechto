@@ -43,13 +43,15 @@ Check(unknown.Trust == 0 && unknown.Familiarity == 0,
     "unknown relationships start with independent zero scales");
 
 var aliceToBob = relationships.Adjust(alice, bob, 65, 20);
-var bobToAlice = relationships.Adjust(bob, alice, 10, 80);
 Check(aliceToBob.Trust == 65 && aliceToBob.Familiarity == 20,
-    "trust and familiarity are stored separately");
-Check(bobToAlice.Trust == 10 && bobToAlice.Familiarity == 80,
-    "relationship opinions are directed, not implicitly symmetric");
-Check(relationships.Get(alice, bob) != relationships.Get(bob, alice),
-    "one resident's opinion does not overwrite the reverse opinion");
+    "trust and familiarity are stored as separate axes");
+Check(relationships.Get(alice, bob) == relationships.Get(bob, alice),
+    "trust and familiarity are symmetric for both residents");
+var bobToAlice = relationships.Adjust(bob, alice, 10, 80);
+Check(bobToAlice.Trust == 75 && bobToAlice.Familiarity == 100,
+    "adjusting the pair from the reverse order updates the shared relationship");
+Check(relationships.Get(alice, bob) == relationships.Get(bob, alice),
+    "reverse lookup remains identical after an adjustment");
 
 var saturatedHigh = relationships.Adjust(alice, bob, long.MaxValue, long.MaxValue);
 Check(saturatedHigh.Trust == 100 && saturatedHigh.Familiarity == 100,
@@ -84,6 +86,8 @@ Check(!aliceJournal.RecordObservation(observation),
     "duplicate event ids are not counted twice");
 
 var immutableSnapshot = aliceJournal.Entries;
+Check(ReferenceEquals(immutableSnapshot, aliceJournal.Entries),
+    "unchanged journals reuse their cached immutable snapshot");
 var secondObservation = new DirectObservation(
     secondEventId,
     alice,
@@ -94,6 +98,8 @@ Check(aliceJournal.RecordObservation(secondObservation),
     "a separate event can be recorded");
 Check(immutableSnapshot.Count == 1,
     "previously returned memory snapshots do not change after later writes");
+Check(!ReferenceEquals(immutableSnapshot, aliceJournal.Entries),
+    "a journal write invalidates only the current snapshot cache");
 
 var readOnlyEntries = (IList<MemoryEntry>)immutableSnapshot;
 Check(readOnlyEntries.IsReadOnly,
@@ -216,6 +222,59 @@ var unknownShare = rumorService.TryRetell(
     aliceJournal, daveJournal, relationships, policy);
 Check(unknownShare.Status == RumorShareStatus.SenderDoesNotKnowEvent,
     "a resident cannot share an event absent from their own journal");
+
+var confirmationEventId = EventId("30000000-0000-0000-0000-000000000003");
+var confirmationSource = new DirectObservation(
+    confirmationEventId,
+    alice,
+    subject,
+    eventTick: 12,
+    observedAtTick: 12,
+    description: "Alice directly observed a third event.");
+Check(aliceJournal.RecordObservation(confirmationSource),
+    "a new event can be recorded before it is shared");
+
+var confirmationRecipientJournal = new MemoryJournal(bob);
+var confirmationConversationId = EventId("40000000-0000-0000-0000-000000000012");
+var confirmationShare = rumorService.TryRetell(
+    new ConversationEvent(confirmationConversationId, alice, bob, tick: 13),
+    alice, bob, confirmationEventId,
+    aliceJournal, confirmationRecipientJournal, relationships, policy);
+Check(confirmationShare.WasShared,
+    "a separate event can be shared explicitly before direct confirmation");
+
+var rumorSnapshot = confirmationRecipientJournal.Entries;
+Check(rumorSnapshot.Single(entry => entry.EventId == confirmationEventId).Kind == MemoryKind.HeardRumor,
+    "the recipient initially stores the event as a rumor");
+
+var directConfirmation = new DirectObservation(
+    confirmationEventId,
+    bob,
+    subject,
+    eventTick: 12,
+    observedAtTick: 14,
+    description: "Bob independently confirmed the same event.");
+Check(confirmationRecipientJournal.RecordObservation(directConfirmation),
+    "a later direct observation upgrades an existing rumor");
+var confirmedEntry = confirmationRecipientJournal.Entries.Single(entry => entry.EventId == confirmationEventId);
+Check(confirmedEntry.Kind == MemoryKind.DirectObservation &&
+      confirmedEntry.OriginalObserverId == bob &&
+      confirmedEntry.LastInformantId == bob &&
+      confirmedEntry.ConfidencePermille == 1000 &&
+      confirmedEntry.RetellCount == 0 &&
+      confirmedEntry.SourceConversationId is null &&
+      confirmedEntry.EventTick == 12 &&
+      confirmedEntry.LearnedAtTick == 14,
+    "direct confirmation replaces rumor provenance while preserving event time");
+Check(rumorSnapshot.Single(entry => entry.EventId == confirmationEventId).Kind == MemoryKind.HeardRumor,
+    "a previously returned rumor snapshot remains unchanged after confirmation");
+Check(!confirmationRecipientJournal.RecordObservation(directConfirmation),
+    "repeating an already recorded direct observation is idempotent");
+Expect<ArgumentException>(
+    () => confirmationRecipientJournal.RecordObservation(new DirectObservation(
+        confirmationEventId, bob, subject, eventTick: 11, observedAtTick: 15,
+        description: "Conflicting event time.")),
+    "an event id cannot be reused for a different event tick");
 
 Expect<ArgumentException>(
     () => new ConversationEvent(Guid.Empty, alice, bob, 1),
