@@ -103,6 +103,7 @@
 - Локальный .NET SDK отсутствует (`dotnet: command not found`); локальная сборка и запуск C# тестов не выполнялись. Проверки подтверждены удалёнными GitHub Actions.
 - Android / Ports1de device test: NOT RUN. Runtime, managed DLL и загрузчик конкретной сборки не подтверждены.
 - JSON Schema проверена workflow командой `python3 -m json.tool`; содержимое схемы не менялось.
+- После добавления отчёта PR workflow повторно прошёл на head `1d76183abc2b7d4c4931dc5fac90be5ce88a5806`: [44637607410 — Social and station integration checks](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44637607410) и [44637607514 — Profession quota checks](https://github.com/azartworld55-ctrl/Protokol-Nechto/actions/runs/44637607514) завершились success. Последующий commit меняет только этот отчёт; C#-код и тесты не менялись.
 
 ## Commit, branch и PR
 
@@ -110,7 +111,7 @@
 - Кодовый commit: [04c5673](https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/04c5673032ef5a8b743e8e528d92b55ca3748763).
 - Ветка: [daily/2026-11-20](https://github.com/azartworld55-ctrl/Protokol-Nechto/tree/daily/2026-11-20).
 - Draft PR: [#6 — Интеграция ростера из 12 жителей с социальным ядром](https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/6), open, `mergeable=true`, `mergeable_state=clean`.
-- Сравнение `main...daily/2026-11-20`: 1 commit ahead, 0 behind; 24 файла, +1376 / −192.
+- Сравнение `main...daily/2026-11-20` после добавления отчёта: 2 commits ahead, 0 behind; 25 файлов, +1499 / −192.
 - PR #1 и PR #4 остаются открытыми Draft; PR #5 уже слит ранее.
 - Изменения не слиты в main.
 
