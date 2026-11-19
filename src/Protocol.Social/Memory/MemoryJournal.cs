@@ -65,6 +65,13 @@ public sealed class MemoryJournal
             if (existing.Kind == MemoryKind.DirectObservation)
                 return false;
 
+            if (observation.ObservedAtTick < existing.LearnedAtTick)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(observation),
+                    "A direct confirmation cannot precede the rumor already learned by this resident.");
+            }
+
             var confirmedEntry = CreateDirectObservationEntry(observation);
             Replace(confirmedEntry);
             return true;
