@@ -247,6 +247,19 @@ var rumorSnapshot = confirmationRecipientJournal.Entries;
 Check(rumorSnapshot.Single(entry => entry.EventId == confirmationEventId).Kind == MemoryKind.HeardRumor,
     "the recipient initially stores the event as a rumor");
 
+Expect<ArgumentOutOfRangeException>(
+    () => confirmationRecipientJournal.RecordObservation(new DirectObservation(
+        confirmationEventId, bob, subject, eventTick: 12, observedAtTick: 12,
+        description: "A confirmation that predates the rumor.")),
+    "direct confirmation cannot be recorded before the resident learned the rumor");
+
+Expect<ArgumentOutOfRangeException>(
+    () => new DirectObservation(
+        EventId("30000000-0000-0000-0000-000000000004"),
+        bob, subject, eventTick: 15, observedAtTick: 14,
+        description: "An observation cannot predate its event"),
+    "observation time cannot precede event time");
+
 var directConfirmation = new DirectObservation(
     confirmationEventId,
     bob,
