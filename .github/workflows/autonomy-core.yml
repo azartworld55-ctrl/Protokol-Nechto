@@ -7,12 +7,18 @@ on:
       - "src/Protocol.Social/**"
       - "tests/Protocol.Autonomy.Tests/**"
       - ".github/workflows/autonomy-core.yml"
+      - "docs/**"
+      - "reports/daily/**"
+      - "CHANGELOG.md"
   pull_request:
     paths:
       - "src/Protocol.Autonomy/**"
       - "src/Protocol.Social/**"
       - "tests/Protocol.Autonomy.Tests/**"
       - ".github/workflows/autonomy-core.yml"
+      - "docs/**"
+      - "reports/daily/**"
+      - "CHANGELOG.md"
   workflow_dispatch:
 
 permissions:
