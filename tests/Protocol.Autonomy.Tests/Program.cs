@@ -136,7 +136,7 @@ Check(station.Residents.Select(item => item.Profile.Id).Distinct().Count() == 12
 Check(station.Residents.SequenceEqual(station.Residents.OrderBy(item => item.Profile.Id.Value)), "station residents use stable id order");
 
 Expect<ArgumentException>(
-    () => new StationAutonomyState(Enumerable.Range(1, 11).Select(Resident), 0),
+    () => new StationAutonomyState(Enumerable.Range(1, 11).Select(id => Resident(id)), 0),
     "eleven residents are rejected");
 Expect<ArgumentException>(
     () => new StationAutonomyState(Enumerable.Range(1, 12).Select(_ => Resident(1)), 0),
