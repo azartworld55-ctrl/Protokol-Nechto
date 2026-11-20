@@ -1,0 +1,37 @@
+name: Autonomy core checks
+
+on:
+  push:
+    paths:
+      - "src/Protocol.Autonomy/**"
+      - "src/Protocol.Social/**"
+      - "tests/Protocol.Autonomy.Tests/**"
+      - ".github/workflows/autonomy-core.yml"
+  pull_request:
+    paths:
+      - "src/Protocol.Autonomy/**"
+      - "src/Protocol.Social/**"
+      - "tests/Protocol.Autonomy.Tests/**"
+      - ".github/workflows/autonomy-core.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  autonomy-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build autonomy domain library
+        run: dotnet build src/Protocol.Autonomy/Protocol.Autonomy.csproj --configuration Release
+
+      - name: Run autonomy invariant and simulation checks
+        run: dotnet run --project tests/Protocol.Autonomy.Tests/Protocol.Autonomy.Tests.csproj --configuration Release
