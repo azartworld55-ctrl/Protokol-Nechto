@@ -532,4 +532,57 @@ Expect<ArgumentOutOfRangeException>(
         1001),
     "observation importance must stay within its configured scale");
 
+var timelineSourceEventId = EventId("50000000-0000-0000-0000-000000000010");
+var timelinePolicy = new RumorTransmissionPolicy(0, 0, 1000, 1, 1);
+var timelineRelationships = new RelationshipLedger();
+timelineRelationships.Adjust(alice, bob, 100, 100);
+var timelineSourceJournal = new MemoryJournal(alice);
+Check(timelineSourceJournal.RecordObservation(new DirectObservation(
+        timelineSourceEventId, alice, subject, 50, "Timeline source event.")),
+    "a source journal records an event before its lifecycle boundary");
+lifecycleService.Advance(
+    timelineSourceJournal,
+    55,
+    new MemoryLifecyclePolicy(0, 0, long.MaxValue, 10));
+var beforeSenderLifecycle = new RumorTransmissionService().TryRetell(
+    new ConversationEvent(
+        EventId("50000000-0000-0000-0000-000000000011"),
+        alice,
+        bob,
+        54),
+    alice,
+    bob,
+    timelineSourceEventId,
+    timelineSourceJournal,
+    new MemoryJournal(bob),
+    timelineRelationships,
+    timelinePolicy);
+Check(beforeSenderLifecycle.Status == RumorShareStatus.ConversationBeforeSenderLifecycle,
+    "rumor service rejects a conversation earlier than the sender journal's processed time");
+
+var timelineRecipientJournal = new MemoryJournal(bob);
+lifecycleService.Advance(
+    timelineRecipientJournal,
+    55,
+    new MemoryLifecyclePolicy(0, 0, long.MaxValue, 10));
+var freshTimelineSource = new MemoryJournal(alice);
+Check(freshTimelineSource.RecordObservation(new DirectObservation(
+        timelineSourceEventId, alice, subject, 50, "Timeline source event.")),
+    "a fresh sender journal can independently hold the same source event");
+var beforeRecipientLifecycle = new RumorTransmissionService().TryRetell(
+    new ConversationEvent(
+        EventId("50000000-0000-0000-0000-000000000012"),
+        alice,
+        bob,
+        54),
+    alice,
+    bob,
+    timelineSourceEventId,
+    freshTimelineSource,
+    timelineRecipientJournal,
+    timelineRelationships,
+    timelinePolicy);
+Check(beforeRecipientLifecycle.Status == RumorShareStatus.ConversationBeforeRecipientLifecycle,
+    "rumor service rejects a conversation earlier than the recipient journal's processed time");
+
 Console.WriteLine("All social core checks passed.");

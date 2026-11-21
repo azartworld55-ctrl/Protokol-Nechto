@@ -12,7 +12,9 @@ public enum RumorShareStatus
     ConversationBeforeKnowledge = 4,
     RelationshipBelowThreshold = 5,
     RetellLimitReached = 6,
-    ConfidenceBelowThreshold = 7
+    ConfidenceBelowThreshold = 7,
+    ConversationBeforeSenderLifecycle = 8,
+    ConversationBeforeRecipientLifecycle = 9
 }
 
 public sealed record RumorShareResult(RumorShareStatus Status, MemoryEntry? Entry)
@@ -51,6 +53,18 @@ public sealed class RumorTransmissionService
             recipientMemory.OwnerId != recipientId)
         {
             return new RumorShareResult(RumorShareStatus.InvalidConversationParticipants, null);
+        }
+
+        if (senderMemory.LastLifecycleTick is long senderLastTick &&
+            conversation.Tick < senderLastTick)
+        {
+            return new RumorShareResult(RumorShareStatus.ConversationBeforeSenderLifecycle, null);
+        }
+
+        if (recipientMemory.LastLifecycleTick is long recipientLastTick &&
+            conversation.Tick < recipientLastTick)
+        {
+            return new RumorShareResult(RumorShareStatus.ConversationBeforeRecipientLifecycle, null);
         }
 
         if (!senderMemory.TryGet(eventId, out var source) || source is null)
