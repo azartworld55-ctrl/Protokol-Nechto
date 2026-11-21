@@ -326,4 +326,263 @@ Expect<ArgumentOutOfRangeException>(
     () => new ConversationEvent(EventId("40000000-0000-0000-0000-000000000011"), alice, bob, -1),
     "negative conversation ticks are rejected");
 
+
+var lifecycleEventId = EventId("50000000-0000-0000-0000-000000000001");
+var lifecycleSenderJournal = new MemoryJournal(alice);
+var lifecycleRecipientJournal = new MemoryJournal(bob);
+var lifecycleRelationships = new RelationshipLedger();
+lifecycleRelationships.Adjust(alice, bob, 100, 100);
+var lifecycleRumorPolicy = new RumorTransmissionPolicy(
+    minimumTrust: 0,
+    minimumFamiliarity: 0,
+    confidenceDecayPermille: 750,
+    minimumConfidencePermille: 1,
+    maximumRetellCount: 4);
+var lifecycleObservation = new DirectObservation(
+    lifecycleEventId,
+    alice,
+    subject,
+    eventTick: 20,
+    observedAtTick: 20,
+    description: "Alice observed a test event.",
+    importancePermille: 800);
+Check(lifecycleSenderJournal.RecordObservation(lifecycleObservation),
+    "a source observation with explicit retention importance is recorded");
+
+var lifecycleConversation = new ConversationEvent(
+    EventId("50000000-0000-0000-0000-000000000002"),
+    alice,
+    bob,
+    tick: 21);
+var lifecycleShare = new RumorTransmissionService().TryRetell(
+    lifecycleConversation,
+    alice,
+    bob,
+    lifecycleEventId,
+    lifecycleSenderJournal,
+    lifecycleRecipientJournal,
+    lifecycleRelationships,
+    lifecycleRumorPolicy);
+Check(lifecycleShare.WasShared && lifecycleShare.Entry is not null,
+    "the lifecycle scenario begins with a rumor delivered through an explicit conversation");
+
+var lifecycleSnapshot = lifecycleRecipientJournal.Entries;
+var lifecycleService = new MemoryLifecycleService();
+var lifecyclePolicy = new MemoryLifecyclePolicy(
+    recallDecayPerTickPermille: 10,
+    forgetBelowRecallStrengthPermille: 0,
+    minimumAgeBeforeForgettingTicks: 100,
+    maximumEntries: 10);
+var lifecycleResult = lifecycleService.Advance(
+    lifecycleRecipientJournal,
+    currentTick: 26,
+    lifecyclePolicy);
+var fadedRumor = lifecycleRecipientJournal.Entries.Single();
+Check(lifecycleResult.EvaluatedEntries == 1 &&
+      lifecycleResult.DecayedEntries == 1 &&
+      lifecycleResult.ForgottenEntries == 0 &&
+      lifecycleResult.EvictedEntries == 0 &&
+      lifecycleResult.RetainedEntries == 1,
+    "the lifecycle result reports the exact work performed");
+Check(fadedRumor.RecallStrengthPermille == 950 &&
+      fadedRumor.ConfidencePermille == 750 &&
+      fadedRumor.ImportancePermille == 800 &&
+      fadedRumor.LastEvaluatedTick == 26,
+    "recall strength decays independently from rumor truth confidence and retention importance");
+Check(lifecycleSnapshot.Single().RecallStrengthPermille == 1000,
+    "a previously returned memory snapshot remains unchanged after decay");
+
+var sameTickResult = lifecycleService.Advance(
+    lifecycleRecipientJournal,
+    currentTick: 26,
+    lifecyclePolicy);
+Check(sameTickResult.DecayedEntries == 0 &&
+      lifecycleRecipientJournal.Entries.Single().RecallStrengthPermille == 950,
+    "re-evaluating the same tick is idempotent");
+
+var lifecycleConfirmation = new DirectObservation(
+    lifecycleEventId,
+    bob,
+    subject,
+    eventTick: 20,
+    observedAtTick: 27,
+    description: "Bob independently observed the same event.",
+    importancePermille: 900);
+Check(lifecycleRecipientJournal.RecordObservation(lifecycleConfirmation),
+    "a direct observation can re-evaluate and confirm a previously heard rumor");
+var lifecycleConfirmedEntry = lifecycleRecipientJournal.Entries.Single();
+Check(lifecycleConfirmedEntry.Kind == MemoryKind.DirectObservation &&
+      lifecycleConfirmedEntry.ConfidencePermille == 1000 &&
+      lifecycleConfirmedEntry.RecallStrengthPermille == 1000 &&
+      lifecycleConfirmedEntry.ImportancePermille == 900 &&
+      lifecycleConfirmedEntry.LastEvaluatedTick == 27,
+    "direct confirmation restores full recall and truth confidence while retaining the higher importance");
+Check(lifecycleSnapshot.Single().Kind == MemoryKind.HeardRumor &&
+      lifecycleSnapshot.Single().RecallStrengthPermille == 1000,
+    "the old rumor snapshot is not rewritten by later direct confirmation");
+
+var forgettingJournal = new MemoryJournal(alice);
+var forgettingEventId = EventId("50000000-0000-0000-0000-000000000003");
+Check(forgettingJournal.RecordObservation(new DirectObservation(
+        forgettingEventId,
+        alice,
+        subject,
+        eventTick: 0,
+        observedAtTick: 0,
+        description: "A low-priority test memory.",
+        importancePermille: 300)),
+    "a memory can be added before its forgetting threshold is reached");
+var forgettingPolicy = new MemoryLifecyclePolicy(
+    recallDecayPerTickPermille: 100,
+    forgetBelowRecallStrengthPermille: 500,
+    minimumAgeBeforeForgettingTicks: 5,
+    maximumEntries: 10);
+var beforeMinimumAge = lifecycleService.Advance(forgettingJournal, 4, forgettingPolicy);
+Check(beforeMinimumAge.ForgottenEntries == 0 &&
+      forgettingJournal.Entries.Single().RecallStrengthPermille == 600,
+    "a faded memory is retained until its configured minimum age");
+var afterMinimumAge = lifecycleService.Advance(forgettingJournal, 5, forgettingPolicy);
+Check(afterMinimumAge.ForgottenEntries == 1 &&
+      afterMinimumAge.RetainedEntries == 0 &&
+      forgettingJournal.Count == 0 &&
+      !forgettingJournal.TryGet(forgettingEventId, out _),
+    "a memory is forgotten only after both age and recall-strength conditions are met");
+Expect<ArgumentOutOfRangeException>(
+    () => lifecycleService.Advance(forgettingJournal, 4, forgettingPolicy),
+    "a journal rejects backwards time even after its last memory was forgotten");
+Expect<ArgumentOutOfRangeException>(
+    () => forgettingJournal.RecordObservation(new DirectObservation(
+        EventId("50000000-0000-0000-0000-000000000009"),
+        alice,
+        subject,
+        eventTick: 4,
+        observedAtTick: 4,
+        description: "A late observation from the past.")),
+    "a journal rejects learning an observation from before its last lifecycle tick");
+
+var capacityJournal = new MemoryJournal(alice);
+var lowImportanceEventId = EventId("50000000-0000-0000-0000-000000000004");
+var mediumImportanceEventId = EventId("50000000-0000-0000-0000-000000000005");
+var highImportanceEventId = EventId("50000000-0000-0000-0000-000000000006");
+Check(capacityJournal.RecordObservation(new DirectObservation(
+        lowImportanceEventId, alice, subject, 0, "Low importance.", 100)) &&
+      capacityJournal.RecordObservation(new DirectObservation(
+        mediumImportanceEventId, alice, subject, 0, "Medium importance.", 500)) &&
+      capacityJournal.RecordObservation(new DirectObservation(
+        highImportanceEventId, alice, subject, 0, "High importance.", 900)),
+    "the journal can collect more memories than its later configured capacity");
+var capacityResult = lifecycleService.Advance(
+    capacityJournal,
+    currentTick: 0,
+    new MemoryLifecyclePolicy(0, 0, long.MaxValue, 2));
+Check(capacityResult.EvictedEntries == 1 &&
+      capacityJournal.Count == 2 &&
+      !capacityJournal.TryGet(lowImportanceEventId, out _) &&
+      capacityJournal.TryGet(mediumImportanceEventId, out _) &&
+      capacityJournal.TryGet(highImportanceEventId, out _),
+    "capacity eviction removes the least important memory first and preserves stronger entries");
+
+var extremeTickJournal = new MemoryJournal(alice);
+var extremeTickEventId = EventId("50000000-0000-0000-0000-000000000007");
+Check(extremeTickJournal.RecordObservation(new DirectObservation(
+        extremeTickEventId, alice, subject, 0, "Extreme tick memory.", 500)),
+    "an observation at tick zero is recorded for the overflow boundary test");
+var extremeTickPolicy = new MemoryLifecyclePolicy(
+    recallDecayPerTickPermille: 1,
+    forgetBelowRecallStrengthPermille: 0,
+    minimumAgeBeforeForgettingTicks: long.MaxValue,
+    maximumEntries: 10);
+var extremeTickResult = lifecycleService.Advance(
+    extremeTickJournal,
+    currentTick: long.MaxValue - 1,
+    extremeTickPolicy);
+Check(extremeTickResult.DecayedEntries == 1 &&
+      extremeTickJournal.Entries.Single().RecallStrengthPermille == 0,
+    "very large elapsed time saturates recall decay without arithmetic overflow");
+Expect<ArgumentOutOfRangeException>(
+    () => lifecycleService.Advance(extremeTickJournal, long.MaxValue - 2, extremeTickPolicy),
+    "memory lifecycle rejects time moving backwards");
+var finalExtremeTickResult = lifecycleService.Advance(
+    extremeTickJournal,
+    currentTick: long.MaxValue,
+    extremeTickPolicy);
+Check(finalExtremeTickResult.ForgottenEntries == 1 &&
+      extremeTickJournal.Count == 0,
+    "the minimum-age comparison remains safe at Int64.MaxValue");
+
+Expect<ArgumentOutOfRangeException>(
+    () => new MemoryLifecyclePolicy(-1, 0, 0, 1),
+    "negative recall decay is rejected");
+Expect<ArgumentOutOfRangeException>(
+    () => new MemoryLifecyclePolicy(0, 1001, 0, 1),
+    "forgetting thresholds above the recall scale are rejected");
+Expect<ArgumentOutOfRangeException>(
+    () => new MemoryLifecyclePolicy(0, 0, -1, 1),
+    "negative minimum memory age is rejected");
+Expect<ArgumentOutOfRangeException>(
+    () => new MemoryLifecyclePolicy(0, 0, 0, 0),
+    "a memory journal capacity must be positive");
+Expect<ArgumentOutOfRangeException>(
+    () => new DirectObservation(
+        EventId("50000000-0000-0000-0000-000000000008"),
+        alice,
+        subject,
+        0,
+        "Invalid importance.",
+        1001),
+    "observation importance must stay within its configured scale");
+
+var timelineSourceEventId = EventId("50000000-0000-0000-0000-000000000010");
+var timelinePolicy = new RumorTransmissionPolicy(0, 0, 1000, 1, 1);
+var timelineRelationships = new RelationshipLedger();
+timelineRelationships.Adjust(alice, bob, 100, 100);
+var timelineSourceJournal = new MemoryJournal(alice);
+Check(timelineSourceJournal.RecordObservation(new DirectObservation(
+        timelineSourceEventId, alice, subject, 50, "Timeline source event.")),
+    "a source journal records an event before its lifecycle boundary");
+lifecycleService.Advance(
+    timelineSourceJournal,
+    55,
+    new MemoryLifecyclePolicy(0, 0, long.MaxValue, 10));
+var beforeSenderLifecycle = new RumorTransmissionService().TryRetell(
+    new ConversationEvent(
+        EventId("50000000-0000-0000-0000-000000000011"),
+        alice,
+        bob,
+        54),
+    alice,
+    bob,
+    timelineSourceEventId,
+    timelineSourceJournal,
+    new MemoryJournal(bob),
+    timelineRelationships,
+    timelinePolicy);
+Check(beforeSenderLifecycle.Status == RumorShareStatus.ConversationBeforeSenderLifecycle,
+    "rumor service rejects a conversation earlier than the sender journal's processed time");
+
+var timelineRecipientJournal = new MemoryJournal(bob);
+lifecycleService.Advance(
+    timelineRecipientJournal,
+    55,
+    new MemoryLifecyclePolicy(0, 0, long.MaxValue, 10));
+var freshTimelineSource = new MemoryJournal(alice);
+Check(freshTimelineSource.RecordObservation(new DirectObservation(
+        timelineSourceEventId, alice, subject, 50, "Timeline source event.")),
+    "a fresh sender journal can independently hold the same source event");
+var beforeRecipientLifecycle = new RumorTransmissionService().TryRetell(
+    new ConversationEvent(
+        EventId("50000000-0000-0000-0000-000000000012"),
+        alice,
+        bob,
+        54),
+    alice,
+    bob,
+    timelineSourceEventId,
+    freshTimelineSource,
+    timelineRecipientJournal,
+    timelineRelationships,
+    timelinePolicy);
+Check(beforeRecipientLifecycle.Status == RumorShareStatus.ConversationBeforeRecipientLifecycle,
+    "rumor service rejects a conversation earlier than the recipient journal's processed time");
+
 Console.WriteLine("All social core checks passed.");

@@ -12,6 +12,7 @@ public sealed class MemoryJournal
     private readonly Dictionary<Guid, MemoryEntry> _byEventId = new();
     private readonly Dictionary<Guid, int> _entryIndexByEventId = new();
     private IReadOnlyList<MemoryEntry>? _entriesSnapshot;
+    private long? _lastLifecycleTick;
 
     public MemoryJournal(ResidentId ownerId)
     {
@@ -20,6 +21,10 @@ public sealed class MemoryJournal
     }
 
     public ResidentId OwnerId { get; }
+
+    public int Count => _entries.Count;
+
+    internal long? LastLifecycleTick => _lastLifecycleTick;
 
     /// <summary>
     /// Returns a cached immutable snapshot. A write invalidates the cache but
@@ -52,6 +57,13 @@ public sealed class MemoryJournal
                 nameof(observation));
         }
 
+        if (_lastLifecycleTick is long lastTick && observation.ObservedAtTick < lastTick)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(observation),
+                "A memory cannot be learned before this journal's last lifecycle tick.");
+        }
+
         if (_byEventId.TryGetValue(observation.EventId, out var existing))
         {
             if (existing.SubjectId != observation.SubjectId ||
@@ -72,7 +84,9 @@ public sealed class MemoryJournal
                     "A direct confirmation cannot precede the rumor already learned by this resident.");
             }
 
-            var confirmedEntry = CreateDirectObservationEntry(observation);
+            var confirmedEntry = CreateDirectObservationEntry(
+                observation,
+                existing.ImportancePermille);
             Replace(confirmedEntry);
             return true;
         }
@@ -95,6 +109,13 @@ public sealed class MemoryJournal
         if (entry.LastInformantId == OwnerId)
             throw new ArgumentException("A resident cannot be their own rumor informant.", nameof(entry));
 
+        if (_lastLifecycleTick is long lastTick && entry.LearnedAtTick < lastTick)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(entry),
+                "A rumor cannot be learned before this journal's last lifecycle tick.");
+        }
+
         if (_byEventId.ContainsKey(entry.EventId))
             return false;
 
@@ -102,7 +123,64 @@ public sealed class MemoryJournal
         return true;
     }
 
-    private MemoryEntry CreateDirectObservationEntry(DirectObservation observation) =>
+    internal void ApplyLifecycle(
+        IReadOnlyDictionary<Guid, MemoryEntry> replacements,
+        IReadOnlySet<Guid> removals,
+        long currentTick)
+    {
+        ArgumentNullException.ThrowIfNull(replacements);
+        ArgumentNullException.ThrowIfNull(removals);
+
+        if (currentTick < 0)
+            throw new ArgumentOutOfRangeException(nameof(currentTick));
+
+        if (_lastLifecycleTick is long lastTick && currentTick < lastTick)
+            throw new ArgumentOutOfRangeException(nameof(currentTick));
+
+        if (replacements.Count == 0 && removals.Count == 0)
+        {
+            _lastLifecycleTick = currentTick;
+            return;
+        }
+
+        var updatedEntries = new List<MemoryEntry>(_entries.Count);
+        foreach (var current in _entries)
+        {
+            if (removals.Contains(current.EventId))
+                continue;
+
+            if (replacements.TryGetValue(current.EventId, out var replacement))
+            {
+                if (replacement.EventId != current.EventId)
+                    throw new ArgumentException("A lifecycle replacement must preserve its event id.", nameof(replacements));
+
+                updatedEntries.Add(replacement);
+            }
+            else
+            {
+                updatedEntries.Add(current);
+            }
+        }
+
+        _entries.Clear();
+        _entries.AddRange(updatedEntries);
+        _byEventId.Clear();
+        _entryIndexByEventId.Clear();
+
+        for (var index = 0; index < _entries.Count; index++)
+        {
+            var entry = _entries[index];
+            _byEventId.Add(entry.EventId, entry);
+            _entryIndexByEventId.Add(entry.EventId, index);
+        }
+
+        _entriesSnapshot = null;
+        _lastLifecycleTick = currentTick;
+    }
+
+    private MemoryEntry CreateDirectObservationEntry(
+        DirectObservation observation,
+        int previousImportancePermille = 0) =>
         new(
             observation.EventId,
             observation.SubjectId,
@@ -114,7 +192,10 @@ public sealed class MemoryJournal
             MemoryKind.DirectObservation,
             confidencePermille: 1000,
             retellCount: 0,
-            sourceConversationId: null);
+            sourceConversationId: null,
+            recallStrengthPermille: 1000,
+            importancePermille: Math.Max(observation.ImportancePermille, previousImportancePermille),
+            lastEvaluatedTick: observation.ObservedAtTick);
 
     private void Add(MemoryEntry entry)
     {

@@ -3,9 +3,8 @@ using Protocol.Social.Domain;
 namespace Protocol.Social.Memory;
 
 /// <summary>
-/// An observation already validated by the caller's perception layer.
-/// EventTick identifies the event; ObservedAtTick identifies when this resident
-/// learned it directly. This distinction allows a rumor to be confirmed later.
+/// An observation already validated by the caller's perception layer. EventTick
+/// identifies the event; ObservedAtTick identifies when this resident learned it.
 /// </summary>
 public sealed class DirectObservation
 {
@@ -14,8 +13,9 @@ public sealed class DirectObservation
         ResidentId observerId,
         ResidentId subjectId,
         long tick,
-        string description)
-        : this(eventId, observerId, subjectId, tick, tick, description)
+        string description,
+        int importancePermille = 500)
+        : this(eventId, observerId, subjectId, tick, tick, description, importancePermille)
     {
     }
 
@@ -25,7 +25,8 @@ public sealed class DirectObservation
         ResidentId subjectId,
         long eventTick,
         long observedAtTick,
-        string description)
+        string description,
+        int importancePermille = 500)
     {
         if (eventId == Guid.Empty)
             throw new ArgumentException("Event id cannot be empty.", nameof(eventId));
@@ -42,12 +43,16 @@ public sealed class DirectObservation
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Observation description is required.", nameof(description));
 
+        if (importancePermille is < 0 or > 1000)
+            throw new ArgumentOutOfRangeException(nameof(importancePermille));
+
         EventId = eventId;
         ObserverId = observerId;
         SubjectId = subjectId;
         EventTick = eventTick;
         ObservedAtTick = observedAtTick;
         Description = description.Trim();
+        ImportancePermille = importancePermille;
     }
 
     public Guid EventId { get; }
@@ -64,4 +69,6 @@ public sealed class DirectObservation
     public long Tick => ObservedAtTick;
 
     public string Description { get; }
+
+    public int ImportancePermille { get; }
 }
