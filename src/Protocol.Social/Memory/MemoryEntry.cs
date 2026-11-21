@@ -2,6 +2,12 @@ using Protocol.Social.Domain;
 
 namespace Protocol.Social.Memory;
 
+public enum MemoryKind
+{
+    DirectObservation = 0,
+    HeardRumor = 1
+}
+
 /// <summary>
 /// Immutable knowledge held by one resident. Rumors retain their original
 /// observer and record the most recent informant separately.
