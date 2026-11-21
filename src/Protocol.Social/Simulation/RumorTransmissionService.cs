@@ -89,7 +89,10 @@ public sealed class RumorTransmissionService
             MemoryKind.HeardRumor,
             confidence,
             source.RetellCount + 1,
-            conversation.Id);
+            conversation.Id,
+            recallStrengthPermille: 1000,
+            importancePermille: source.ImportancePermille,
+            lastEvaluatedTick: conversation.Tick);
 
         if (!recipientMemory.TryRecordRumor(rumor))
             return new RumorShareResult(RumorShareStatus.RecipientAlreadyKnowsEvent, null);

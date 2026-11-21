@@ -2,12 +2,6 @@ using Protocol.Social.Domain;
 
 namespace Protocol.Social.Memory;
 
-public enum MemoryKind
-{
-    DirectObservation = 0,
-    HeardRumor = 1
-}
-
 /// <summary>
 /// Immutable knowledge held by one resident. Rumors retain their original
 /// observer and record the most recent informant separately.
@@ -25,7 +19,10 @@ public sealed class MemoryEntry
         MemoryKind kind,
         int confidencePermille,
         int retellCount,
-        Guid? sourceConversationId)
+        Guid? sourceConversationId,
+        int recallStrengthPermille = 1000,
+        int importancePermille = 500,
+        long? lastEvaluatedTick = null)
     {
         if (eventId == Guid.Empty)
             throw new ArgumentException("Event id cannot be empty.", nameof(eventId));
@@ -55,13 +52,23 @@ public sealed class MemoryEntry
         if (sourceConversationId == Guid.Empty)
             throw new ArgumentException("Source conversation id cannot be empty.", nameof(sourceConversationId));
 
+        if (recallStrengthPermille is < 0 or > 1000)
+            throw new ArgumentOutOfRangeException(nameof(recallStrengthPermille));
+
+        if (importancePermille is < 0 or > 1000)
+            throw new ArgumentOutOfRangeException(nameof(importancePermille));
+
+        var evaluatedAt = lastEvaluatedTick ?? learnedAtTick;
+        if (evaluatedAt < learnedAtTick)
+            throw new ArgumentOutOfRangeException(nameof(lastEvaluatedTick));
+
         if (kind == MemoryKind.DirectObservation &&
             (sourceConversationId is not null ||
              retellCount != 0 ||
              confidencePermille != 1000 ||
              originalObserverId != lastInformantId))
         {
-            throw new ArgumentException("Direct observations cannot contain rumor provenance or decay.", nameof(kind));
+            throw new ArgumentException("Direct observations cannot contain rumor provenance or reduced truth confidence.", nameof(kind));
         }
 
         if (kind == MemoryKind.HeardRumor &&
@@ -81,6 +88,9 @@ public sealed class MemoryEntry
         ConfidencePermille = confidencePermille;
         RetellCount = retellCount;
         SourceConversationId = sourceConversationId;
+        RecallStrengthPermille = recallStrengthPermille;
+        ImportancePermille = importancePermille;
+        LastEvaluatedTick = evaluatedAt;
     }
 
     public Guid EventId { get; }
@@ -99,10 +109,36 @@ public sealed class MemoryEntry
 
     public MemoryKind Kind { get; }
 
-    /// <summary>Confidence in thousandths: 1000 is full confidence, 0 is none.</summary>
+    /// <summary>Confidence that a rumor is true, in thousandths. Direct observations remain 1000.</summary>
     public int ConfidencePermille { get; }
+
+    /// <summary>How readily this resident can recall the memory, in thousandths.</summary>
+    public int RecallStrengthPermille { get; }
+
+    /// <summary>Caller-supplied retention importance, in thousandths.</summary>
+    public int ImportancePermille { get; }
+
+    /// <summary>The last simulation tick at which the memory lifecycle was evaluated.</summary>
+    public long LastEvaluatedTick { get; }
 
     public int RetellCount { get; }
 
     public Guid? SourceConversationId { get; }
+
+    internal MemoryEntry WithLifecycle(int recallStrengthPermille, long lastEvaluatedTick) =>
+        new(
+            EventId,
+            SubjectId,
+            OriginalObserverId,
+            LastInformantId,
+            Description,
+            EventTick,
+            LearnedAtTick,
+            Kind,
+            ConfidencePermille,
+            RetellCount,
+            SourceConversationId,
+            recallStrengthPermille,
+            ImportancePermille,
+            lastEvaluatedTick);
 }
