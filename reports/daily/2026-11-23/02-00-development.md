@@ -27,10 +27,10 @@
 - main: e49c7ecaa591fd7b2cd67220a28e251f429820d1.
 - Ветка daily/2026-11-23 отсутствовала; создана от актуального main.
 - Перед работой существовали main, feature/initial-social-core и daily/2026-11-16 — daily/2026-11-22.
-- Открытые PR: #1, #4, #6, #7 и #8. PR #1 и #4 показывают mergeable=false; PR #6, #7 и #8 показывают mergeable=true. Все пять остаются открытыми Draft.
+- Открытые PR: #1, #4, #6, #7 и #8. PR #1 и #4 показывали mergeable=false; PR #6, #7 и #8 показывали mergeable=true. Все пять оставались открытыми Draft.
 - PR #5 уже слит в main.
 - main содержит Protocol.ProfessionConfig и базовый Protocol.Social. Генератор Core (#4/#6), автономия (#7) и жизненный цикл памяти (#8) остаются в отдельных открытых PR и не считаются частью main.
-- PR #8 добавляет жизненный цикл памяти в файлы Memory/*, RumorTransmissionService.cs, монолитный social test и docs/СОЦИАЛЬНОЕ_ЯДРО.md. Чтобы не создавать пересечение и конфликт с ним, сегодняшняя реализация добавлена отдельными исходниками, отдельным тестовым проектом, отдельным workflow и отдельной спецификацией.
+- PR #8 добавляет жизненный цикл памяти в Memory/*, RumorTransmissionService.cs, монолитный social test и docs/СОЦИАЛЬНОЕ_ЯДРО.md. Чтобы не создавать пересечение и конфликт с ним, сегодняшняя реализация добавлена отдельными исходниками, отдельным тестовым проектом, отдельным workflow и отдельной спецификацией.
 - README называет «Тюремную колонию» новым приоритетом репозитория, а «ПРОТОКОЛ: НЕЧТО» — отложенным проектом. По заданной области изменялись только файлы Protocol.Social и документация «ПРОТОКОЛ: НЕЧТО»; PrisonColony/ не затрагивался.
 
 ## Что реализовано
@@ -54,7 +54,7 @@
 - tests/Protocol.Social.Conversation.Tests/Program.cs
 - .github/workflows/conversation-exchange.yml
 - docs/ОБМЕН_В_РАЗГОВОРЕ.md
-- этот отчёт.
+- reports/daily/2026-11-23/02-00-development.md
 
 ## Архитектурные решения
 
@@ -74,13 +74,28 @@
 
 ## Тесты и результаты
 
-Статус будет заполнен после выполнения GitHub Actions на сегодняшнем code head. Локальный .NET SDK в рабочем окружении не подтверждён; локальный запуск не заявляется.
+Проверено на code head 9726fd474c944f3c3bf11f977f7f5c6a76200d99:
+
+- Conversation exchange push workflow #45081625674 — success.
+- Conversation exchange PR workflow #45081649211 — success.
+- Существующий Social core push workflow #45081625604 — success.
+- Существующий Social core PR workflow #45081649357 — success.
+- Release build Protocol.Social: 0 warnings / 0 errors.
+- Отдельный Protocol.Social.Conversation.Tests: All conversation exchange checks passed (29 assertions).
+- В существующем Social core workflow успешно завершились build и regression checks.
+
+Первый запуск на code head прошёл без исправлений. После открытия PR повторно прошли оба PR workflow.
+
+Локальный .NET SDK в рабочем контейнере отсутствует: команда dotnet --info завершилась с кодом 127 (dotnet: command not found). Поэтому локальные build/test не выполнялись. Сборка и тесты подтверждены GitHub Actions. Android / Ports1de device test не выполнялся.
 
 ## Commit, branch и PR
 
 - Базовый main: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/e49c7ecaa591fd7b2cd67220a28e251f429820d1.
+- Кодовый commit: https://github.com/azartworld55-ctrl/Protokol-Nechto/commit/9726fd474c944f3c3bf11f977f7f5c6a76200d99.
 - Ветка: https://github.com/azartworld55-ctrl/Protokol-Nechto/tree/daily/2026-11-23.
-- Draft PR и commit links будут добавлены после публикации изменений и открытия PR.
+- Draft PR #9: https://github.com/azartworld55-ctrl/Protokol-Nechto/pull/9.
+- Сравнение с main: 1 commit ahead / 0 behind, 8 новых файлов, 736 добавлений.
+- После CI GitHub показывает PR #9 open, Draft, mergeable=true. PR не слит.
 
 ## Что оставить этапу 03:00
 
