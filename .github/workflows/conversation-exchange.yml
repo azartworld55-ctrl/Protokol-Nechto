@@ -1,0 +1,35 @@
+name: Conversation exchange checks
+
+on:
+  push:
+    paths:
+      - "src/Protocol.Social/**"
+      - "tests/Protocol.Social.Conversation.Tests/**"
+      - ".github/workflows/conversation-exchange.yml"
+  pull_request:
+    paths:
+      - "src/Protocol.Social/**"
+      - "tests/Protocol.Social.Conversation.Tests/**"
+      - ".github/workflows/conversation-exchange.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conversation-exchange:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build social domain library
+        run: dotnet build src/Protocol.Social/Protocol.Social.csproj --configuration Release
+
+      - name: Run conversation exchange checks
+        run: dotnet run --project tests/Protocol.Social.Conversation.Tests/Protocol.Social.Conversation.Tests.csproj --configuration Release
